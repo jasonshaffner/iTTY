@@ -6,7 +6,7 @@
 import getpass, telnetlib, os, sys, re, time, threading, paramiko
 from multiprocessing import Manager
 
-class TWiTTY: 
+class iTTY: 
 	#Factory, optional keyword args: host, username, password
 	def __init__(self, **kwargs):
 		self.host = kwargs.get('host', None)
@@ -194,7 +194,7 @@ class runthread(threading.Thread):
 
 	def run(self):
 		self.pool.acquire()
-		tty = TWiTTY(host=self.host.split('.', 1)[0], username=self.username, password=self.password)
+		tty = iTTY(host=self.host.split('.', 1)[0], username=self.username, password=self.password)
 		if tty.securelogin(): 
 			if tty.os == 1: tty.setcommands(alucommands)
 			elif tty.os == 2: tty.setcommands(xrcommands)
