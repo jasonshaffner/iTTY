@@ -21,7 +21,7 @@ It requires that you have a file with a list of devices, one per line
 Runs with optional args (recommended for use as part of another script)
 
 
-`$ iTTY username password devicelistfilename [configmode y or n]
+`$ iTTY username password devicelistfilename [configmode y or n]`
 
 
 or can be run using prompts (recommended for running manually)
