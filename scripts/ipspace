@@ -1,4 +1,5 @@
-#This works for IOS-XR, IOS, JUNOS, ALU, ASA
+#!/usr/bin/env python
+#This works for IOS-XR
 #This will try SSH first then try Telnet
 #This script will pull the avalable space in a supernet
 import getpass, netaddr, re, sys
