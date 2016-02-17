@@ -1,0 +1,8 @@
+from distutils.core import setup
+setup(name='iTTY', 
+	version='0.1', 
+	description='Intelligent TTY Utilities for Network Administration',
+	author='Jason Shaffner, Patrick Lawless',
+	py_modules=['src/iTTY'], 
+	scripts=['scripts/intflaplist', 'scripts/ipspace', 'scripts/iTTY'],
+	)
