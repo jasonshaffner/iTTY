@@ -5,4 +5,5 @@ setup(name='iTTY',
 	author='Jason Shaffner, Patrick Lawless',
 	packages=['iTTY'], 
 	scripts=['scripts/intflaplist', 'scripts/ipspace', 'scripts/runcommands'],
+	requires=['paramiko', 'netaddr'],
 	)

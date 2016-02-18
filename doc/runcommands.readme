@@ -1,0 +1,120 @@
+Runs commands stored in files for IOS, IOS-XR, ASA, ALU and JUNOS, on devices listed in file.
+
+Requires list of devices which you would like to check.
+Requires list of commands for echo of the various platforms you would like to check.
+File names for commands should be 'ALU', 'IOS', 'XR', 'ASA' and 'JUNOS'.
+
+Example usage:
+
+$ cat IOS
+show run | in location
+show run | in logging
+
+$ cat XR
+show run formal | in location
+show run formal | in logging
+
+$ cat JUNOS
+show configuration | match location | display set 
+show configuration | match syslog | display set
+
+$ cat list
+router1.domain.com
+router2.domain.com
+router3.domain.com
+
+$ runcommands 
+Username: monty
+Password: 
+Device list file: list
+
+
+*************** router1 ***************
+
+
+show run | in location 
+_________________________________________
+
+vlan internal allocation policy ascending
+snmp-server location 123 Fourth St. 
+
+
+
+show run | in logging
+_________________________________________
+
+logging buffered 1024000
+no logging console
+logging event link-status default
+xconnect logging pseudowire status
+logging esm config
+logging trap debugging
+logging facility local6
+logging source-interface Loopback0
+logging 10.174.40.52
+logging 10.183.64.131
+logging synchronous
+logging synchronous
+logging synchronous
+
+
+
+
+
+*************** router2 ***************
+
+
+show run formal | in location 
+_________________________________________
+
+snmp-server location 432 First St.
+
+
+
+show run formal | in logging
+_________________________________________
+
+logging archive device harddisk
+logging archive severity debugging
+logging archive file-size 1
+logging archive frequency weekly
+logging archive archive-size 5
+logging archive archive-length 1
+logging console disable
+logging buffered 1024000
+logging buffered debugging
+logging facility local6
+logging 10.174.40.52 vrf default
+logging 10.183.64.131 vrf default
+logging hostnameprefix crtntxjt02r
+logging suppress duplicates
+
+
+
+
+
+*************** router3 ***************
+
+
+show configuration | match location | display set 
+_________________________________________
+
+
+set snmp location "404 Error St"
+
+
+
+
+show configuration | match syslog | display set
+_________________________________________
+
+set system syslog user * any emergency
+set system syslog host 10.174.40.52 any info
+set system syslog host 10.174.40.52 facility-override local6
+set system syslog host 10.183.64.131 any info
+set system syslog host 10.183.64.131 facility-override local6
+set system syslog file messages any notice
+set system syslog file messages authorization info
+set system syslog file messages interactive-commands any
+set system syslog file messages archive size 10m
+set system syslog file messages archive files 5
