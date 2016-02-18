@@ -4,5 +4,5 @@ setup(name='iTTY',
 	description='Intelligent TTY Utilities for Network Administration',
 	author='Jason Shaffner, Patrick Lawless',
 	packages=['iTTY'], 
-	scripts=['scripts/intflaplist', 'scripts/ipspace', 'scripts/iTTY'],
+	scripts=['scripts/intflaplist', 'scripts/ipspace', 'scripts/runcommands'],
 	)

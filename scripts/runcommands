@@ -1,0 +1,97 @@
+#!/usr/bin/env python
+import threading, getpass, sys
+from multiprocessing import Manager
+
+#Subclass of Thread, used for concurrent logins across multiple devices, only used when running as script
+class runthread(threading.Thread):
+	def __init__(self, pool, host, username, password):
+		threading.Thread.__init__(self)
+		self.pool = pool
+		self.host= host
+		self.username = username
+		self.password = password
+
+	def run(self):
+		self.pool.acquire()
+		tty = iTTY(host=self.host.split('.', 1)[0], username=self.username, password=self.password)
+		if tty.securelogin(): 
+			if tty.os == 1: tty.setcommands(alucommands)
+			elif tty.os == 2: tty.setcommands(xrcommands)
+			elif tty.os == 3: tty.setcommands(ioscommands)
+			elif tty.os == 4: tty.setcommands(junoscommands)
+			elif tty.os == 5: tty.setcommands(asacommands)
+			else: 
+				pool.release()
+				return 0
+			tty.runseccommands(commanddelay)
+			report.append(tty.getoutput())
+		elif tty.unsecurelogin():
+			if tty.os == 1: tty.setcommands(alucommands)
+			elif tty.os == 2: tty.setcommands(xrcommands)
+			elif tty.os == 3: tty.setcommands(ioscommands)
+			elif tty.os == 4: tty.setcommands(junoscommands)
+			elif tty.os == 5: tty.setcommands(asacommands)
+			else: 
+				pool.release()
+				return 0
+			tty.rununseccommands(commanddelay)
+			report.append(tty.getoutput())
+		pool.release()
+
+#Main method, used when running as script
+if __name__ == "__main__":
+	if len(sys.argv) < 5:
+		username = raw_input("Username: ")
+		password = getpass.getpass()
+		devicelist = raw_input("Device list file: ")
+		configs = raw_input("Are you making config changes? [y/n] ")
+	else:
+		username = sys.argv[1]
+		password = sys.argv[2]
+		devicelist = sys.argv[3]
+		configs = sys.argv[4]
+	hostnames = open(devicelist, 'r')
+	if "y" in configs: command_delay = 1
+	else: commanddelay = 5 #Seconds to wait for each command to finish
+	manager = Manager()
+	report = manager.list([])
+	threadcount = 1000
+	commandfiles = 0
+	try:
+		junoscommands = list(open('JUNOS', 'r'))
+		junoscommands.insert(0, 'set cli screen-length 0')
+	except: commandfiles += 1
+	try:
+		ioscommands = list(open('IOS', 'r'))
+		ioscommands.insert(0, 'terminal length 0')
+	except: commandfiles += 1
+	try:
+		xrcommands = list(open('XR', 'r'))
+		xrcommands.insert(0, 'terminal length 0')
+	except: commandfiles += 1
+	try:
+		alucommands = list(open('ALU', 'r'))
+		alucommands.insert(0, "environment no more")
+	except: commandfiles += 1
+	try:
+		asacommands = list(open('ASA', 'r'))
+		asacommands.insert(0, 'enable')
+		asacommands.insert(1, password)
+		asacommands.insert(2, 'terminal pager 0')
+	except: commandfiles += 1
+	if commandfiles == 5:
+		print "Couldn't find command files\r"
+		exit()
+	pool = threading.Semaphore(threadcount)
+	threads = []
+	for host in hostnames:
+		with pool:
+			thread = runthread(pool, host, username, password)
+			threads.append(thread)
+			thread.start()
+	for t in threads: t.join()
+	hostnames.close()
+	###### Print output of commands and post thread processing ######
+	report = sorted(report, key=lambda hostname: hostname[0])
+	for y in report:
+		for x in y: print x
