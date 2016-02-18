@@ -2,7 +2,7 @@
 #Fully importable class to log in and run commands on multiple OS
 #This has been tested to work on IOS-XR, IOS, JUNOS, ALU, ASA
 
-import getpass, telnetlib, os, sys, time, paramiko
+import getpass, telnetlib, os, sys, time, re, paramiko
 from multiprocessing import Manager
 
 class iTTY: 
@@ -70,7 +70,7 @@ class iTTY:
 		elif re.search('.*#', prompt): self.os = 3     #IOS
 		elif re.search(self.username + '@.*>', prompt): self.os = 4  #JUNOS
 		elif re.search('.*>', prompt): self.os = 5  #ASA
-		return
+		return self.os
 
 	#Returns digit signifying type of OS
 	def getos(self):
@@ -106,10 +106,12 @@ class iTTY:
 	#Sets the output of commands run, overwriting any previous entries
 	def setoutput(self, output):
 		self.output = output
+		return
 
 	#Adds to output of commands run
 	def addtooutput(self, output):
 		self.output.append(output)
+		return
 
 	#Returns the output
 	def getoutput(self):
