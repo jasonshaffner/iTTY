@@ -148,7 +148,7 @@ class iTTY:
 			time.sleep(3)  #Allow time to log in and strip MOTD
 			self.prompt = self.shell.recv(1000)
 			self.setos(self.prompt)
-			self.addtooutput(['\n\n*************** ' + self.host + ' ***************\n\n', ])
+			self.addtooutput(['\n\n*************** ' + self.host.strip("\n") + ' ***************\n\n', ])
 			return self.os
 		except: 
 			return 0
@@ -171,7 +171,7 @@ class iTTY:
 			self.setos(self.prompt)
 		except: 
 			return 0
-		self.addtooutput(['\n\n*************** ' + self.host + ' ***************\n\n', ])
+		self.addtooutput(['\n\n*************** ' + self.host.strip("\n") + ' ***************\n\n', ])
 		return self.os
 
 	#Runs commands when logged in via SSH, returns output
