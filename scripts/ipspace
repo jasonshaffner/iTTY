@@ -4,7 +4,7 @@
 #This script will pull the avalable space in a supernet
 import getpass, netaddr, re, sys
 from iTTY import iTTY
-from netaddr import *
+from netaddr import IPSet
 
 tty = iTTY()
 if len(sys.argv) < 5:
