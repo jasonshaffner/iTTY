@@ -19,6 +19,7 @@ class Mpcommand(Thread):
 
 	def run(self):
 		self.pool.acquire()
+		self.tty.addtooutput(['\n\n*************** ' + self.host.strip("\n") + ' ***************\n', ])
 		if self.tty.securelogin(): 
 			if self.tty.os == 1:self.tty.setcommands(self.alucommands)
 			elif self.tty.os == 2:self.tty.setcommands(self.xrcommands)
