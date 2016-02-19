@@ -182,7 +182,6 @@ class iTTY:
 				continue
 			self.addtooutput([Format.underline(command), ])
 			self.addtooutput(output.split('\n')[1:-1])
-			#self.addtooutput(self.session.read_very_eager().split('\n'))
 		self.session.write('exit\r')
 		self.session.close()
 		return self.getoutput()

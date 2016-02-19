@@ -4,6 +4,7 @@
 #This script will pull the avalable space in a supernet
 import getpass, netaddr, re, sys
 from iTTY import iTTY
+from iTTY.format import Format
 from netaddr import IPSet
 
 tty = iTTY()
@@ -24,14 +25,13 @@ xrcommands = ["terminal len 0", "show route longer-prefixes " + commandprefix + 
 routetable = []
 
 tty.setcommands(xrcommands)
-if tty.securelogin(): 
-	report.append(tty.runseccommands(command_delay))
-elif tty.unsecurelogin():
-	report.append(tty.rununseccommands(command_delay))
+if tty.securelogin(): tty.runseccommands(command_delay)
+elif tty.unsecurelogin(): tty.rununseccommands(command_delay)
 else:
 	print "Couldn't log in."
 	exit()
 
+report.append(Format.siftoutput(tty.output)) 
 for y in report:
 	for line in y:
 		if re.search("Bundle", line):continue

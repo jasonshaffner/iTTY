@@ -2,6 +2,7 @@
 
 import time, re, sys
 from iTTY import iTTY
+from iTTY.format import Format
 
 tty = iTTY()
 hour = 0
@@ -27,10 +28,11 @@ output = []
 ssh = 0
 if tty.securelogin():
 	ssh = 1
-	output = tty.runseccommands(25)
+	tty.runseccommands(25)
 elif tty.unsecurelogin():
-	output = tty.rununseccommands(25)
+	tty.rununseccommands(25)
 else: exit()
+output = Format.siftoutput(tty.output)
 tty.clearoutput()
 tty.clearcommands()
 flaps = []
@@ -44,8 +46,9 @@ for y in flaps:
 print '\n\nFLAPS  INTERFACE          ADMIN       OPER        DESCRIPTION'
 print '--------------------------------------------------------------------------------------'
 tty.setcommands(['term len 0', 'sh int desc | ex admin'])
-if ssh: interfaces = tty.runseccommands(10)
-else: interfaces = tty.rununseccommands(10) 
+if ssh: tty.runseccommands(10)
+else: tty.rununseccommands(10) 
+interfaces = Format.siftoutput(tty.output)
 for line in interfaces:
 	li = line.split(' ')
 	l = li[0][2:]
