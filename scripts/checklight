@@ -47,7 +47,7 @@ elif tty.os == 3:
 	    commands[1] = commands[1] + ' | inc ' + card + '/'
 
 elif tty.os == 4:
-    	commands = ['set cli screen-length 0', 'show interfaces terse | except down | except net ' , ]
+    	commands = ['set cli screen-length 0', 'show interfaces terse | except down | except \. | match "ge-|xe-"']
 	if not card: pass
 	elif re.search('\|', card):
 	    commands[1] = commands[1] + ' | match "' + card1 + card2 + '/"'
@@ -89,31 +89,36 @@ for entry in output:
 				data.append(interface + '  tx =' + levels[0] + '  rx =' + levels[1])
 
 	elif tty.os == 3:  #IOS
-		tty.setcommands(['show interfaces ' + interface + ' transceiver | inc [0-9]/',])
-		print tty.commands
+		tty.setcommands(['show interfaces ' + interface + ' transceiver | inc ' + interface[-3:],]) 
 		if ssh: levels = Format.siftoutput(tty.runseccommands(3), siftout=[tty.prompt, 'show'])
 		else: levels = Format.siftoutput(tty.rununseccommands(3), siftout=[tty.prompt, 'show'])
-		txlev = levels.split('-')[1].strip()
-		rxlev = levels.split('-')[2].strip()
-		print interface + '  tx = -'+ txlev + '  rx = -' + rxlev
-		if int(txlev[1]) >= 7 or int(rxlev[1]) >= 7:
-			data.append(interface + '  tx = -'+ txlev + '  rx = -' + rxlev)
+		if levels:
+			txlev = levels[0].split('-')[1].strip()
+			rxlev = levels[0].split('-')[2].strip()
+			print interface + '  tx = -'+ txlev + '  rx = -' + rxlev
+			if int(txlev[0]) >= 7 or int(rxlev[0]) >= 7:
+				data.append(interface + '  tx = -'+ txlev + '  rx = -' + rxlev)
+		else:
+			print interface + "  Optic not inserted"
+			continue
 
 	elif tty.os == 4:  #JUNOS
-		tty.setcommand(['show interfaces diagnostics optics ' + interface + ' | match dBm | except thre',])
-		if ssh: levels = Format.siftoutput(tty.runseccommands(3), siftout=[tty.prompt, 'show'])
-		else: levels = Format.siftoutput(tty.rununseccommands(3), siftout=[tty.prompt, 'show'])
-		rxlev = levels[0].split('/')[1].strip().strip('dBm')
-		txlev = levels[1].split('/')[1].strip().strip('dbm')
-		print interface + '  tx = '+ txlev + '  rx = ' + rxlev
-		if int(txlev[1]) >= 7 or int(rxlev[1]) >= 7:
-			data.append(interface + '  tx = '+ txlev + '  rx = ' + rxlev)
-
-
+		tty.setcommands(['show interfaces diagnostics optics ' + interface + ' | match dBm | except thre',])
+		if ssh: levels = Format.siftoutput(tty.runseccommands(3), siftout=[username, 'show'])
+		else: levels = Format.siftoutput(tty.rununseccommands(3), siftout=[username, 'show'])
+		if levels:
+			rxlev = levels[0].split('/')[1].strip().strip('dBm')
+			txlev = levels[1].split('/')[1].strip().strip('dbm')
+			print interface + '  tx = '+ txlev + '  rx = ' + rxlev
+			if int(txlev[1]) >= 7 or int(rxlev[1]) >= 7:
+				data.append(interface + '  tx = '+ txlev + '  rx = ' + rxlev)
+		else: 
+			print interface + "  Optic not inserted"
+			continue
 
 if data:
 	print Format.starpad('Interfaces under -7', 25) 
 	print ''
 	for d in data: print d
 	print ''
-	print '****************************************************************' 
+	print Format.makeline(50, linechar="*")

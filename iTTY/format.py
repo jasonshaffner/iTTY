@@ -17,10 +17,17 @@ class Format(object):
 		return temp
 
 	@staticmethod
-	def underline(input):
+	def underline(input, linechar="-"):
 		line = ""
 		for i in range(len(input)):
-			line = line + "-"	
+			line = line + linechar	
+		return input.strip() + '\n' + line + '\n'
+
+	@staticmethod
+	def makeline(count, linechar="-"):
+		line = ""
+		for i in range(count):
+			line = line + linechar
 		return input.strip() + '\n' + line + '\n'
 
 	@staticmethod
@@ -28,5 +35,12 @@ class Format(object):
 		input = " " + input.strip() + " "
 		for i in range(count):
 			input = "*" + input + "*"
+		return input
+
+	@staticmethod
+	def spacepad(input, count):
+		input = " " + input.strip() + " "
+		for i in range(count):
+			input = " " + input + " "
 		return input
 

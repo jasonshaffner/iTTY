@@ -130,7 +130,7 @@ class iTTY:
 			self.session.connect(self.host.strip('\n'), username=self.username, password=self.password, look_for_keys=False, allow_agent=False)
 			self.shell = self.session.invoke_shell()
 			time.sleep(3)  #Allow time to log in and strip MOTD
-			self.prompt = self.shell.recv(1000).strip()
+			self.prompt = self.shell.recv(1000).split('\n')[-1].strip()
 			self.setos(self.prompt)
 			return self.os
 		except: 
@@ -175,6 +175,4 @@ class iTTY:
 			if commandheader: 
 				self.addtooutput(['\n' + Format.underline(command), ])
 			self.addtooutput(output.split('\n')[1:])
-		self.session.write('exit\r')
-		self.session.close()
 		return self.getoutput()
