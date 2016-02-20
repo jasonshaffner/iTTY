@@ -59,7 +59,7 @@ for host in hostnames:
 		thread = Mpcommand(username, password, host, commanddelay, pool=pool, junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa)
 		threads.append(thread)
 		thread.start()
-for t in threads: report.append(['\n\n' + Format.starpad(t.host, 15) + '\n', ] + t.join())
+for t in threads: report.append(['\n\n' + Format.pad(t.host, 15, padchar="*") + '\n', ] + t.join())
 hostnames.close()
 report = sorted(report, key=lambda hostname: hostname[0])
 for y in report:
