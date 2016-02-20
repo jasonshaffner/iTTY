@@ -130,14 +130,14 @@ class iTTY:
 			self.session.connect(self.host.strip('\n'), username=self.username, password=self.password, look_for_keys=False, allow_agent=False)
 			self.shell = self.session.invoke_shell()
 			time.sleep(3)  #Allow time to log in and strip MOTD
-			self.prompt = self.shell.recv(1000)
+			self.prompt = self.shell.recv(1000).strip()
 			self.setos(self.prompt)
 			return self.os
 		except: 
 			return 0
 
 	#Attempts fo login to devices via Telnet, returns OS type if successful, if not returns 0
-	def unsecurelogin(self, **kwargs):   #Telnet specific login and processing
+	def unsecurelogin(self, **kwargs):
 		if kwargs:
 			self.host = kwargs.get('host', None)
 			self.username = kwargs.get('username', None)
@@ -157,31 +157,24 @@ class iTTY:
 		return self.os
 
 	#Runs commands when logged in via SSH, returns output
-	def runseccommands(self, command_delay):
-		flag = 1 
-		if self.os == 5: flag = 3
+	def runseccommands(self, command_delay, commandheader=0):
 		for command in self.getcommands():
 			self.shell.send(command.strip() + '\r')
 			time.sleep(command_delay)
-			if flag > 0:
-				flag -= 1
-				continue
-			self.addtooutput([Format.underline(command), ])
-			self.addtooutput(self.shell.recv(500000).split('\n'))
+			if commandheader: 
+				self.addtooutput(['\n' + Format.underline(command), ])
+			self.addtooutput(self.shell.recv(500000).split('\n')[1:])
 		return self.getoutput()
 
 	#Runs commands when logged in via Telnet, returns output
-	def rununseccommands(self, command_delay):
-		flag = 0 
+	def rununseccommands(self, command_delay, commandheader=0):
 		for command in self.commands:
 			self.session.write(command.strip() + '\r')
 			n, m, output = self.session.expect([self.prompt, ], command_delay)
 			time.sleep(command_delay)
-			if flag == 0:
-				flag = 1
-				continue
-			self.addtooutput([Format.underline(command), ])
-			self.addtooutput(output.split('\n')[1:-1])
+			if commandheader: 
+				self.addtooutput(['\n' + Format.underline(command), ])
+			self.addtooutput(output.split('\n')[1:])
 		self.session.write('exit\r')
 		self.session.close()
 		return self.getoutput()

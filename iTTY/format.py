@@ -7,20 +7,20 @@ class Format(object):
 		siftout = kwargs.get('siftout', [])
 		dontprint = ['enable', 'Password:', 'terminal length', 'screen-length', 'Screen length',\
 			'environment no more', '{master', 'Building config', 'Mon', 'Tue', 'Wed', \
-			'Thu', 'Fri', 'Sat', 'Sun'] + siftout
+			'Thu', 'Fri', 'Sat', 'Sun',] + siftout
 		temp = []
 		for entry in input:
 			for line in entry:
+				if not line.strip(): continue
 				if any(n in line for n in dontprint): continue
 				temp.append(line)
-			temp.append('\n')
 		return temp
 
 	@staticmethod
 	def underline(input):
 		line = ""
 		for i in range(len(input)):
-			line = line + "_"	
+			line = line + "-"	
 		return input.strip() + '\n' + line + '\n'
 
 	@staticmethod

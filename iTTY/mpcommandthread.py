@@ -30,7 +30,7 @@ class Mpcommand(Thread):
 			else: 
 				self.pool.release()
 				return 0
-			output = self.tty.runseccommands(self.commanddelay)
+			output = self.tty.runseccommands(self.commanddelay, commandheader=1)
 		elif self.tty.unsecurelogin():
 			if self.tty.os == 1: self.tty.setcommands(self.alucommands)
 			elif self.tty.os == 2: self.tty.setcommands(self.xrcommands)
@@ -40,7 +40,7 @@ class Mpcommand(Thread):
 			else: 
 				self.pool.release()
 				return 0
-			output = self.tty.rununseccommands(self.commanddelay)
+			output = self.tty.rununseccommands(self.commanddelay, commandheader=1)
 		else:
 			print "Could not log in to " + self.host
 			exit()

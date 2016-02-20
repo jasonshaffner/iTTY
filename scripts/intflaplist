@@ -23,7 +23,7 @@ if int(day) < 10: day = month + "  " + day[-1]
 else: day = month + " " + day
 if hour: day = day + ' ' + hour
 day = day.strip()
-tty.setcommands(['term len 0', 'sh log | utility egrep -e \'' + day + '.*LINK-3-UPDOWN.*Down\''])
+tty.setcommands(['terminal length 0', 'sh log | utility egrep -e \'' + day + '.*LINK-3-UPDOWN.*Down\''])
 output = []
 ssh = 0
 if tty.securelogin():
@@ -45,7 +45,7 @@ for y in flaps:
 	report.add((y, count))
 print '\n\nFLAPS  INTERFACE          ADMIN       OPER        DESCRIPTION'
 print '--------------------------------------------------------------------------------------'
-tty.setcommands(['term len 0', 'sh int desc | ex admin'])
+tty.setcommands(['sh int desc | ex admin'])
 if ssh: tty.runseccommands(10)
 else: tty.rununseccommands(10) 
 interfaces = Format.siftoutput(tty.output)
