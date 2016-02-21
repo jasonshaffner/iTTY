@@ -65,7 +65,9 @@ class iTTY:
 		elif re.search('CPU.*#', prompt): self.os = 2  #XR
 		elif re.search('.*#', prompt): self.os = 3     #IOS
 		elif re.search(self.username + '@.*>', prompt): self.os = 4  #JUNOS
-		elif re.search('.*>', prompt): self.os = 5  #ASA
+		elif re.search('.*>', prompt): 
+			self.os = 5  #ASA
+			self.prompt = self.prompt.strip()[0:-1] + '#'
 		return self.os
 
 	#Returns digit signifying type of OS
