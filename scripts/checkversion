@@ -53,13 +53,5 @@ for t in threads:
 		model = output[1].split()[1].strip(',')
 		version = output[0].split()[-1].strip()
 	report.append([t.host, platform, model, version])
-Format.columnize(report, width=6, bars=1)
-i = 0
-print '\n'
-for line in report:
-	if i == 0 or i == len(report) - 1:
-		print Format.underline(line[0] + line[1] + line[2] + line[3])
-	else: print line[0] + line[1] + line[2] + line[3]
-	i += 1
-print '\n'
+print Format.columnize(report, width=6, bars=1)
 hostnames.close()

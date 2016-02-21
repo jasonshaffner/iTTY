@@ -65,4 +65,12 @@ class Format(object):
 					if j == 0: input[i][j] = '| ' + input[i][j]
 				else: input[i][j] = Format.padright(input[i][j], padding + width) 
 				n += 1
-		return input
+		i = 0
+		output = '\n'
+		for line in input:
+			if i == 0 or i == len(input) - 1:
+				output += Format.underline(line[0] + line[1] + line[2] + line[3]) + '\n'
+			else: output += line[0] + line[1] + line[2] + line[3] + '\n'
+			i += 1
+		output += '\n'
+		return output
