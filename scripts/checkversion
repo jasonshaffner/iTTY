@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import getpass, sys
+import getpass, sys, re
 from threading import Semaphore
 from iTTY import iTTY
 from iTTY.mpcommandthread import Mpcommand
@@ -25,7 +25,7 @@ threads = []
 pool = Semaphore(1000)
 for host in hostnames:
 	with pool:
-		thread = Mpcommand(username, password, host.split('.')[0], commanddelay, pool=pool, junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, commandheader=0)
+		thread = Mpcommand(username, password, host.split('.')[0].strip(), commanddelay, pool=pool, junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, commandheader=0)
 		threads.append(thread)
 		thread.start()
 report = [['Hostname', 'Platform', 'Model', 'Version'],]
@@ -47,7 +47,7 @@ for t in threads:
 		platform = 'Juniper JUNOS'
 		for l in output: 
 			if l.startswith('Model'): model = l.split()[1]
-			if l.startswith('Junos'): version = l.split()[1]
+			if re.search('OS Software', l): version = l.split()[-1][1:-1]
 	elif t.tty.os == 5: #ASA
 		platform = 'Cisco ASA'
 		model = output[1].split()[1].strip(',')
