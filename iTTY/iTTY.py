@@ -1,5 +1,6 @@
 import getpass, telnetlib, os, sys, time, re, paramiko
 from format import Format
+paramiko.util.log_to_file('/dev/null')
 
 class iTTY: 
 	#Factory, optional keyword args: host, username, password
