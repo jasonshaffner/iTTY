@@ -21,7 +21,7 @@ class Format(object):
 
 	@staticmethod
 	def underline(input, linechar="-"):
-		return input.strip() + '\n' + Format.makeline(input.strip(), linechar)
+		return input.strip() + '\n' + Format.makeline(len(input.strip()), linechar)
 
 	@staticmethod
 	def padleft(input, count, padchar=" "):
@@ -41,8 +41,8 @@ class Format(object):
 		for line in input:
 			n = 0
 			for entry in line:
-				if len(maxlen) < len(line): maxlen.append(len(entry))
-				else: maxlen[n] = max(maxlen[n], len(entry))
+				if len(maxlen) < len(line): maxlen.append(len(entry.strip()))
+				else: maxlen[n] = max(maxlen[n], len(entry.strip()))
 				n += 1
 		output = '\n'
 		for line in input:
@@ -51,8 +51,8 @@ class Format(object):
 			else: tmp = ""
 			for entry in line:
 				padding = maxlen[n] - len(entry)
-				if bars: tmp += Format.padright(Format.padright(entry, padding + width/2) + '|', width/2)
-				else: tmp += Format.padright(entry, padding + width) 
+				if bars: tmp += Format.padright(Format.padright(entry.strip(), padding + width/2) + '|', width/2)
+				else: tmp += Format.padright(entry.strip(), padding + width) 
 				n += 1
 			if bars and (line == input[0] or line == input[-1]): tmp = Format.underline(tmp) 
 			output += tmp + '\n'
