@@ -21,7 +21,7 @@ class Format(object):
 
 	@staticmethod
 	def underline(input, linechar="-"):
-		return input.strip() + '\n' + Format.makeline(input.strip())
+		return input.strip() + '\n' + Format.makeline(input.strip(), linechar)
 
 	@staticmethod
 	def padleft(input, count, padchar=" "):
