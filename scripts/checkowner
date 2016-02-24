@@ -1,0 +1,33 @@
+#!/usr/bin/env python
+
+import getpass, threading, sys
+from iTTY.format import Format
+from iTTY.mpcommandthread import Mpcommand
+
+if len(sys.argv) < 5:
+	username = raw_input("Username: ")
+	password = getpass.getpass()
+	devicelist = raw_input("Device list file: ")
+else:
+	username = sys.argv[1]
+	password = sys.argv[2]
+	devicelist = sys.argv[3]
+hostnames = open(devicelist, 'r')
+report = [['Hostname', 'Owner']]
+threadcount = 1000
+commanddelay = 1
+junos = ['show configuration snmp contact', ]
+ios = ['show snmp contact']
+xr = ['show run | in contact', ]
+asa = ['enable', password, 'show run | in contact']
+alu = ['admin display-config | match contact']
+pool = threading.Semaphore(threadcount)
+threads = []
+for host in hostnames:
+	with pool:
+		thread = Mpcommand(username, password, host, commanddelay, pool=pool, junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, commandheader=0)
+		threads.append(thread)
+		thread.start()
+for t in threads: report.append([t.host.strip(), t.join()[-1].split()[-1].strip('"').strip(';').strip()])
+hostnames.close()
+print Format.columnize(report, bars=1)
