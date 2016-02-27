@@ -14,7 +14,7 @@ else:
 	devicelist = sys.argv[3]
 hostnames = open(devicelist, 'r')
 report = [['Hostname', 'Owner']]
-threadcount = 1000
+threadcount = 500
 commanddelay = 1
 junos = ['show configuration snmp contact', ]
 ios = ['show snmp contact']
@@ -25,9 +25,15 @@ pool = threading.Semaphore(threadcount)
 threads = []
 for host in hostnames:
 	with pool:
-		thread = Mpcommand(username, password, host, commanddelay, pool=pool, junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, commandheader=0)
+		thread = Mpcommand(username, password, host, commanddelay, \
+			junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, commandheader=0)
 		threads.append(thread)
 		thread.start()
-for t in threads: report.append([t.host.strip(), t.join()[-1].split()[-1].strip('"').strip(';').strip()])
+for t in threads: 
+	t.join()
+	try:
+		report.append([t.host.strip(), t.tty.getouput()[-1].split()[-1].strip('"').strip(';').strip()])
+	except:
+		print "No data available for " + t.host.strip()
 hostnames.close()
 print Format.columnize(report, bars=1)

@@ -28,9 +28,9 @@ output = []
 ssh = 0
 if tty.securelogin():
 	ssh = 1
-	tty.runseccommands(10)
+	tty.runseccommands(25)
 elif tty.unsecurelogin():
-	tty.rununseccommands(10)
+	tty.rununseccommands(25)
 else: exit()
 output = Format.siftoutput(tty.output)
 tty.clearoutput()
@@ -43,19 +43,22 @@ report = set()
 for y in flaps:
 	count = len([x for x in flaps if x == y])
 	report.add((y, count))
+print '\n\nFLAPS  INTERFACE          ADMIN       OPER        DESCRIPTION'
+print '--------------------------------------------------------------------------------------'
 tty.setcommands(['sh int desc | ex admin'])
 if ssh: tty.runseccommands(10)
 else: tty.rununseccommands(10) 
 interfaces = Format.siftoutput(tty.output)
-output = [['FLAPS', 'INTERFACE', 'ADMIN', 'OPER', 'DESCRIPTION'],]
 for line in interfaces:
-	li = line.split(None, 3)
+	li = line.split(' ')
 	l = li[0][2:]
 	for lin in report:
 		intnum = lin[0].split('E')[-1]
 		if re.search(intnum, l) and re.search(li[0][:1], lin[0]):
-			li.insert(0, str(lin[1]))
-			output.append(li)
+			if lin[1] < 10: print '    ' + str(lin[1]) + '  ' + line
+			elif lin[1] < 100: print '   ' + str(lin[1]) + '  ' + line
+			elif lin[1] < 1000: print '  ' + str(lin[1]) + '  ' + line
+			elif lin[1] < 10000: print ' ' + str(lin[1]) + '  ' + line
+			else: print str(lin[1]) + ' ' + line
 			report.remove(lin)
 			break
-print Format.columnize(output, bars=1, width=5)
