@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-import getpass, threading, sys
+import getpass, sys
+from threading import Semaphore
 from iTTY.format import Format
 from iTTY.mpcommandthread import Mpcommand
 
@@ -13,15 +14,14 @@ else:
 	password = sys.argv[2]
 	devicelist = sys.argv[3]
 hostnames = open(devicelist, 'r')
-report = [['Hostname', 'Owner']]
-threadcount = 500
+threadcount = 1000
 commanddelay = 1
 junos = ['show configuration snmp contact', ]
 ios = ['show snmp contact']
 xr = ['show run | in contact', ]
 asa = ['enable', password, 'show run | in contact']
 alu = ['admin display-config | match contact']
-pool = threading.Semaphore(threadcount)
+pool = Semaphore(threadcount)
 threads = []
 for host in hostnames:
 	with pool:
@@ -29,10 +29,11 @@ for host in hostnames:
 			junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, commandheader=0)
 		threads.append(thread)
 		thread.start()
+report = [['Hostname', 'Owner'], ]
 for t in threads: 
 	t.join()
 	try:
-		report.append([t.host.strip(), t.tty.getouput()[-1].split()[-1].strip('"').strip(';').strip()])
+		report.append([t.host.strip(), t.tty.getoutput()[-1].split()[-1].strip('"').strip(';').strip()])
 	except:
 		print "No data available for " + t.host.strip()
 hostnames.close()

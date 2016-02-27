@@ -120,6 +120,16 @@ class iTTY:
 		self.output = []
 		return
 
+	def login(self, **kwargs):
+		if kwargs:
+			self.host = kwargs.get('host', None)
+			self.username = kwargs.get('username', None)
+			self.password = kwargs.get('password', None)
+		if not self.verifyloginparameters(): return
+		if self.securelogin(): return self.os
+		elif self.unsecurelogin(): return self.os
+		else: return 0
+
 	#Attempts to login to devices via SSH, returns OS type if successful, if not returns 0
 	def securelogin(self, **kwargs):
 		if kwargs:
@@ -159,18 +169,24 @@ class iTTY:
 			return 0
 		return self.os
 
+	def runcommands(self, command_delay, commandheader=0, done=False):
+		if self.shell: return self.runseccommands(command_delay, commandheader=commandheader, done=done)
+		elif self.session: return self.rununseccommands(command_delay, commandheader=commandheader, done=done)
+		else: return 0
+
 	#Runs commands when logged in via SSH, returns output
-	def runseccommands(self, command_delay, commandheader=0):
+	def runseccommands(self, command_delay, commandheader=0, done=False):
 		for command in self.getcommands():
 			self.shell.send(command.strip() + '\r')
 			time.sleep(command_delay)
 			if commandheader: 
 				self.addtooutput(['\n' + Format.underline(command), ])
 			self.addtooutput(self.shell.recv(500000).split('\n')[1:])
+		if done: self.logout()
 		return self.getoutput()
 
 	#Runs commands when logged in via Telnet, returns output
-	def rununseccommands(self, command_delay, commandheader=0):
+	def rununseccommands(self, command_delay, commandheader=0, done=False):
 		for command in self.commands:
 			self.session.write(command.strip() + '\r')
 			n, m, output = self.session.expect([self.prompt, ], command_delay)
@@ -178,4 +194,10 @@ class iTTY:
 			if commandheader: 
 				self.addtooutput(['\n' + Format.underline(command), ])
 			self.addtooutput(output.split('\n')[1:])
+		if done: self.logout()
 		return self.getoutput()
+
+	def logout(self):
+		if self.shell: self.shell.close()
+		elif self.session: self.session.close()
+		return

@@ -6,6 +6,6 @@ setup(name='iTTY',
 	url='https://github.com/jasonshaffner/iTTY',
 	packages=['iTTY'], 
 	scripts=['scripts/intflaplist', 'scripts/ipspace', 'scripts/runcommands', \
-		'scripts/checklight', 'scripts/checkversion'],
+		'scripts/checklight', 'scripts/checkversion', 'scripts/checkowner'],
 	requires=['paramiko', 'netaddr'],
 	)
