@@ -56,7 +56,7 @@ pool = threading.Semaphore(threadcount)
 threads = []
 for host in hostnames:
 	with pool:
-		thread = Mpcommand(username, password, host, commanddelay, \
+		thread = Mpcommand(username, password, host, command_delay, \
 			junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa)
 		threads.append(thread)
 		thread.start()
