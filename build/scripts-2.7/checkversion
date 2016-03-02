@@ -1,0 +1,60 @@
+#!/usr/bin/python
+
+import getpass, sys, re
+from threading import Semaphore
+from iTTY import iTTY
+from iTTY.mpcommandthread import Mpcommand
+from iTTY.format import Format
+
+if len(sys.argv) < 4:
+	username = raw_input("Username: ")
+	password = getpass.getpass()
+	devicelist = raw_input("Device list file: ")
+else:
+	username = sys.argv[1]
+	password = sys.argv[2]
+	devicelist = sys.argv[3]
+hostnames = open(devicelist, 'r')
+commanddelay = 1
+xr = ['terminal length 0', 'show version brief | utility egrep "Software,|processor"']
+ios = ['terminal length 0', 'show version | in processor|Software,']
+alu = ['environment no more', 'show version']
+asa = ['enable', password, 'terminal pager 0', 'show version | in ware']
+junos = ['set cli screen-length 0', 'show version']
+threads = []
+pool = Semaphore(1000)
+for host in hostnames:
+	with pool:
+		thread = Mpcommand(username, password, host.split('.')[0].strip(), commanddelay, pool=pool, junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, commandheader=0)
+		threads.append(thread)
+		thread.start()
+report = [['Hostname', 'Platform', 'Model', 'Version'],]
+for t in threads: 
+	t.join()
+	try:
+		output = t.tty.getoutput()
+		if t.tty.os == 1: #ALU
+			platform = 'Alcatel TiMOS'
+			model = output[0].split('ALCATEL')[1].split('Copyright')[0].strip()
+			version = output[0].split()[0].split('-')[-1]
+		elif t.tty.os == 2: #XR
+			platform = 'Cisco IOS XR'
+			model = output[1].split()[1]
+			version = output[0].split()[-1].split('[')[0]
+		elif t.tty.os == 3: #IOS
+			platform = 'Cisco IOS'
+			model = output[-1].split()[1]
+			version = output[0].split('Version')[1].split()[0].strip(',')
+		elif t.tty.os == 4: #JUNOS
+			platform = 'Juniper JUNOS'
+			for l in output: 
+				if l.startswith('Model'): model = l.split()[1]
+				if re.search('OS Software', l): version = l.split()[-1][1:-1]
+		elif t.tty.os == 5: #ASA
+			platform = 'Cisco ASA'
+			model = output[1].split()[1].strip(',')
+			version = output[0].split()[-1].strip()
+		report.append([t.host, platform, model, version])
+	except: print "No data available for " + t.host.strip()
+print Format.columnize(report, width=6, bars=1)
+hostnames.close()
