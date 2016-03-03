@@ -49,4 +49,4 @@ for t in threads:
                 print "No data available for " + t.host.strip()
 hostnames.close()
 report = sorted(report, key=lambda hostname: hostname[0])
-print Format.columnize(report)
+print Format.columnize(report, bars=1, width=5)

@@ -47,7 +47,7 @@ class Format(object):
 		output = '\n'
 		for line in input:
 			n = 0
-			if bars: tmp = '|'
+			if bars: tmp = Format.padright('|', width/2)
 			else: tmp = ""
 			for entry in line:
 				padding = maxlen[n] - len(entry)
