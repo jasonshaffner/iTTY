@@ -5,9 +5,9 @@ class Format(object):
 	@staticmethod
 	def siftoutput(input, **kwargs): 
 		siftout = kwargs.get('siftout', [])
-		dontprint = ['enable', 'Password:', 'terminal length', 'screen-length', 'Screen length', 'terminal pager',\
-			'environment no more', '{master', 'Building config', 'Mon', 'Tue', 'Wed', \
-			'Thu', 'Fri', 'Sat', 'Sun',] + siftout
+		dontprint = ['enable', 'Password:', 'terminal length', 'screen-length', 'Screen length', \
+			'terminal pager', 'environment no more', '{master', 'Building config', \
+			'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',] + siftout
 		output= []
 		for entry in input:
 			for line in entry:
