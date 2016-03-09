@@ -34,11 +34,11 @@ else:
 report.append(Format.siftoutput(tty.output)) 
 for y in report:
 	for line in y:
-		if re.search("Bundle", line):continue
 		try:
 			if re.search("O", line):
 				ospf = line.split(" ")[2]
 				routetable.append(ospf)
+			elif re.search("Bundle", line):continue
 			elif re.search("B", line):
 				bgp = line.split(" ")[4]
 			routetable.append(bgp)
