@@ -18,9 +18,11 @@ class Mpcommand(Thread):
 		self.junoscommands = kwargs.get('junoscommands', None)
 		self.xrcommands = kwargs.get('xrcommands', None)
 		self.commandheader = kwargs.get('commandheader', 1)
+		self.pool = kwargs.get('pool', None)
 		self.tty = iTTY(username=username, password=password, host=host)
 
 	def run(self):
+		if self.pool: self.pool.acquire()
 		if self.tty.login(): 
 			if self.tty.os == 1:self.tty.setcommands(self.alucommands)
 			elif self.tty.os == 2:self.tty.setcommands(self.xrcommands)
@@ -31,13 +33,16 @@ class Mpcommand(Thread):
 			output = self.tty.runcommands(self.commanddelay, commandheader=self.commandheader, done=True)
 		else:
 			print "Could not log in to " + self.host.strip()
+			if self.pool: self.pool.release()
 			return
 		self.tty.setoutput(Format.siftoutput(output, siftout=[self.username, self.password, self.tty.prompt]))
+		if self.pool: self.pool.release()
 		return
 
 class Mpinteractivecommand(Mpcommand):
 
 	def run(self):
+		if self.pool: self.pool.acquire()
 		if self.tty.login(): 
 			if self.tty.os == 1: commands = self.alucommands
 			elif self.tty.os == 2: commands = self.xrcommands
@@ -53,7 +58,9 @@ class Mpinteractivecommand(Mpcommand):
 				output = self.tty.runcommands(self.commanddelay, commandheader=self.commandheader) 
 		else:
 			print "Could not log in to " + self.host.strip()
+			if self.pool: self.pool.release()
 			return
 		output = self.tty.getoutput()
 		self.tty.setoutput(Format.siftoutput(output, siftout=[self.username, self.password, self.tty.prompt]))
+		if self.pool: self.pool.release()
 		return
