@@ -56,10 +56,10 @@ if commandfiles == 5:
 pool = Semaphore(threadcount)
 threads = []
 for host in hostnames:
-		thread = Mpcommand(username, password, host, command_delay, \
-			junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, pool=pool)
-		threads.append(thread)
-		thread.start()
+	thread = Mpcommand(username, password, host, command_delay, pool=pool, \
+		junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa)
+	threads.append(thread)
+	thread.start()
 for t in threads: 
 	t.join()
 	try:

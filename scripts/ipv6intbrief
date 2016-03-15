@@ -23,11 +23,10 @@ alu = ['environment no more', 'show router interface ipv6']
 pool = threading.Semaphore(threadcount)
 threads = []
 for host in hostnames:
-        with pool:
-                thread = Mpcommand(username, password, host.split('.')[0].strip(), command_delay, \
-                        ioscommands=ios, xrcommands=xr, junoscommands=junos, alucommands=alu, commandheader=0)
-                threads.append(thread)
-                thread.start()
+	thread = Mpcommand(username, password, host.split('.')[0].strip(), command_delay, pool=pool, \
+		ioscommands=ios, xrcommands=xr, junoscommands=junos, alucommands=alu, commandheader=0)
+	threads.append(thread)
+	thread.start()
 report = [["Hostname", "Interface", "IPv6 Address"],]
 for t in threads: 
         t.join()

@@ -24,11 +24,10 @@ alu = ['admin display-config | match contact']
 pool = Semaphore(threadcount)
 threads = []
 for host in hostnames:
-	with pool:
-		thread = Mpcommand(username, password, host, commanddelay, \
-			junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, commandheader=0)
-		threads.append(thread)
-		thread.start()
+	thread = Mpcommand(username, password, host, commanddelay, pool=pool, \
+		junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, commandheader=0)
+	threads.append(thread)
+	thread.start()
 report = [['Hostname', 'Owner'], ]
 for t in threads: 
 	t.join()
