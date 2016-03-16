@@ -20,7 +20,6 @@ for p in prefix:
 	octet = p.split(".")[0]
 	commandprefix = p
 command_delay = 20
-report = []
 xrcommands = ["terminal len 0", "show route longer-prefixes " + commandprefix + " | begin " + octet + "."+ "\n"]
 routetable = []
 
@@ -31,27 +30,16 @@ else:
 	print "Couldn't log in."
 	exit()
 
-report.append(Format.siftoutput(tty.output)) 
-for y in report:
-	for line in y:
-		try:
-			if re.search("O", line):
-				ospf = line.split(" ")[2]
-				routetable.append(ospf)
-			elif re.search("Bundle", line):continue
-			elif re.search("B", line):
-				bgp = line.split(" ")[4]
-			routetable.append(bgp)
-		except:continue
+for line in Format.siftoutput(tty.output, siftout=[tty.prompt]):
+	if not line.startswith(' '):
+		ipaddr = line.split('/')[0].split()[-1].strip()
+		cidr = line.split('[')[0].split('/')[1].strip()
+		routetable.append(ipaddr + '/' + cidr)
 
-try:
-	ipv4_addr_space = IPSet(prefix)
-	router_routes = IPSet(routetable)
-	unavailable = router_routes
-	available = ipv4_addr_space ^ unavailable
-	print "\n\n********IP Space that is NOT in routing********\n\n"
-	for cidr in available.iter_cidrs():
-		print cidr
-
-except AddrFormatError:
-	print "Errors"
+ipv4_addr_space = IPSet(prefix)
+router_routes = IPSet(routetable)
+unavailable = router_routes
+available = ipv4_addr_space ^ unavailable
+print "\n\n********IP Space that is NOT in routing********\n\n"
+for cidr in available.iter_cidrs():
+	print cidr
