@@ -10,33 +10,28 @@ from netaddr import IPSet
 tty = iTTY()
 if len(sys.argv) < 5:
         tty.setlogin()
-        tty.sethost(raw_input("Device: ").split('.', 1)[0])
-	prefix = {raw_input("Prefix to look up: ")}
+        tty.sethost(raw_input("Device: "))
+	prefix = raw_input("Prefix to look up: ")
 else:
         tty.setlogin(username=sys.argv[1],password=sys.argv[2])
         tty.sethost(sys.argv[3].split('.', 1)[0])
-        prefix = {sys.argv[4]}
-for p in prefix:
-	octet = p.split(".")[0]
-	commandprefix = p
+        prefix = sys.argv[4]
+octet = prefix.split('.')[0]
 command_delay = 20
-xrcommands = ["terminal len 0", "show route longer-prefixes " + commandprefix + " | begin " + octet + "."+ "\n"]
-routetable = []
-
+xrcommands = ["terminal len 0", "show route longer-prefixes " + prefix + " | begin " + octet + "."+ "\n"]
 tty.setcommands(xrcommands)
 if tty.securelogin(): tty.runseccommands(command_delay)
 elif tty.unsecurelogin(): tty.rununseccommands(command_delay)
 else:
 	print "Couldn't log in."
 	exit()
-
+routetable = []
 for line in Format.siftoutput(tty.output, siftout=[tty.prompt]):
-	if not line.startswith(' '):
+	if line[:1].isalpha():
 		ipaddr = line.split('/')[0].split()[-1].strip()
-		cidr = line.split('[')[0].split('/')[1].strip()
+		cidr = line.split('/')[1].split()[0].strip()
 		routetable.append(ipaddr + '/' + cidr)
-
-ipv4_addr_space = IPSet(prefix)
+ipv4_addr_space = IPSet({prefix})
 router_routes = IPSet(routetable)
 unavailable = router_routes
 available = ipv4_addr_space ^ unavailable
