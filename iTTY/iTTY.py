@@ -126,8 +126,7 @@ class iTTY:
 			self.username = kwargs.get('username', None)
 			self.password = kwargs.get('password', None)
 		if not self.verifyloginparameters(): return
-		if self.securelogin(): return self.os
-		elif self.unsecurelogin(): return self.os
+		if self.securelogin() or self.unsecurelogin(): return self.os
 		else: return 0
 
 	#Attempts to login to devices via SSH, returns OS type if successful, if not returns 0
