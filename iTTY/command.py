@@ -14,7 +14,7 @@ class Command_parser():
                 commands = []
                 if command.regex:
                         for entry in input:
-                                for line in entry:
+                                for line in entry.split():
                                         if re.search(command.regex, line):
                                                 commands.append(Command_parser.process_command(command, line=line))
                 else:

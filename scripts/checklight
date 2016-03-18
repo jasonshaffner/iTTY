@@ -1,70 +1,97 @@
 #!/usr/bin/env python
-#Version 0.2 - This currently works for IOS-XR, IOS and JUNOS
+#Version 0.9 - Currently supports Alcatel TiMOS, Cisco IOS and IOS-XR, and Junos
 
 import re
 from iTTY import iTTY
+from iTTY.command import Command, Command_parser
 from iTTY.format import Format
 
 tty = iTTY()
 tty.setlogin()
 tty.sethost(raw_input("Hostname: ").split('.', 1)[0]) 
 print ''
-print '  Syntax  |     XR    |   IOS   |  Junos  |'
-print '          |-----------|---------|---------|'
-print 'One card  |    0/1    |    7    |    7    |'
-print 'Two cards |  0/1|0/10 |   7|9   |   7|9   |'
-print 'All cards |           |         |         |'
+print '  Syntax  |    ALU    |     XR    |   IOS   |  Junos  |'
+print '          |-----------|-----------|---------|---------|'
+print 'One card  |     1     |    0/1    |    7    |    7    |'
+print 'Two cards |    1|8    |  0/1|0/10 |   7|9   |   7|9   |'
+print 'All cards |           |           |         |         |'
 print ''
 card = raw_input("Card(s): ")
 if re.search('\|', card):
-	card1 = card.split('|')[0] + '/|'
-	card2 = card.split('|')[1] + '/'
-ssh = 0
-if tty.securelogin(): ssh = 1
-elif tty.unsecurelogin(): ssh = 0
+	card1 = card.split('|')[0] + '/'
+	card2 = '|' + card.split('|')[1] + '/'
+if tty.login(): pass
 else:
 	print "Couldn't log in"
 	exit()
+regex = '\d/'
+if tty.os == 1:
+	tty.setcommands(['environment no more', 'show port | match expression "[0-9] *Up"',])
+	if not card: tty.commands[1] += ' | match expression ^[0-9]'
+	elif re.search('\|', card):
+		tty.commands[1] += ' | match expression "^[' + card1 + card2 + ']/"'
+	else: tty.commands[1] += ' | match expression ^' + card + '/'
+	lightcommand = Command(['show port optical '], regex=regex, insertionpoints=[0], commanddelay=1)
 
-if tty.os == 2:
-	commands = ['terminal length 0', 'show ip interface br | ex Shutdown',]
+elif tty.os == 2:
+	tty.setcommands(['terminal length 0', 'show ip interface br | ex Shutdown',])
 	if not card: pass
 	elif re.search('\|', card):
-	    commands[1] = commands[1] + ' | utility egrep "E' + card1 + 'E' + card2 + '"'
-	else: commands[1] = commands[1] + ' | inc E' + card + '/'
+	    tty.commands[1] += ' | utility egrep "E' + card1 + 'E' + card2 + '"'
+	else: tty.commands[1] += ' | inc E' + card + '/'
+	lightcommand = Command(['show controllers ', ' phy | utility egrep -e "[TR]x [Pp]"'], 
+			       regex=regex, insertionpoints=[0], commanddelay=3)
 	    
 elif tty.os == 3:
-	commands = ['terminal length 0', 'show ip interface br',]
-	if not card: commands[1] = commands[1] + ' | ex admin'
+	tty.setcommands(['terminal length 0', 'show ip interface br',])
+	if not card: tty.commands[1] = commands[1] + ' | ex admin'
 	if re.search('\|', card):
-	    commands[1] = commands[1] + ' | inc ' + card1 + card2
+	    tty.commands[1] += ' | inc ' + card1 + '[0-9] .*up' + card2 + '[0-9] .*up'
 	else:
-	    commands[1] = commands[1] + ' | inc ' + card + '/'
+	    tty.commands[1] += ' | inc ' + card + '/[0-9] .*up'
+	lightcommand = Command(['show interfaces ', ' transceiver | in [0-9]'], regex=regex, insertionpoints=[0], commanddelay=1)
 
 elif tty.os == 4:
-    	commands = ['set cli screen-length 0', 'show interfaces terse | except down | except \. | match "ge-|xe-"']
+    	tty.setcommands(['set cli screen-length 0', 'show interfaces terse | except down | except \. | match "ge-|xe-"'])
 	if not card: pass
 	elif re.search('\|', card):
-	    commands[1] = commands[1] + ' | match "' + card1 + card2 + '/"'
+	    tty.commands[1] += ' | match "' + card1 + card2 + '/"'
 	else:
-	    commands[1] = commands[1] + ' | match ' + card + '/'
-
+	    tty.commands[1] += ' | match ' + card + '/'
+	lightcommand = Command(['show interfaces diagnostics optics ', ' | match dBm | except thre'], 
+		regex=regex, insertionpoints=[0], commanddelay=1) 
 else:
-	print "Incompatible with this OS"
+	print "OS is not supported at this time"
 	exit()
 
-tty.setcommands(commands)
-if ssh: output = Format.siftoutput(tty.runseccommands(3), siftout=['down', tty.prompt])
-else: output = Format.siftoutput(tty.rununseccommands(3), siftout=['down', tty.prompt])
 lowlight = [] 
-for entry in output:
-	interface = entry.split(' ')[0].strip()
-	tty.clearcommands()
+output = Format.siftoutput(tty.runcommands(3), siftout=[tty.prompt])
+commands = Command_parser.generate_commands(lightcommand, output)
+command_delay = lightcommand.commanddelay
+for command in commands:
+	tty.setcommands([command])
 	tty.clearoutput()
+	levels = Format.siftoutput(tty.runcommands(command_delay), siftout=[tty.prompt])
+	if tty.os == 1: #ALU
+		interface = tty.commands[0].split()[-1]
+		if levels[-2][:1].isspace():
+			for i in range(-11, -1):
+				line = interface + '\tLane ' + str(i+12) + '\ttx = ' + \
+					levels[i].split()[3] + ' dBm\trx = ' + levels[i].split()[4] + ' dBm'
+				print line
+				if int(levels[i].split()[3].split('.')[0]) <= -7 or \
+					int(levels[i].split()[4].split('.')[0]) <= -7:
+					lowlight.append(line)
+		else:
+			line = interface + '\ttx = ' + levels[-3].split()[4] + \
+				' dBm\trx = ' + levels[-2].split()[5] + ' dBm' 
+			print line
+			if levels[-3].split()[4].split('.')[0] <= -7 or \
+				levels[-2].split()[5].split('.')[0] <= -7:
+				lowlight.append(line)
+
 	if tty.os == 2: #IOS-XR
-		tty.setcommands(['show controllers ' + interface + ' phy | utility egrep -e "[TR]x [Pp]"',])
-		if ssh: levels = Format.siftoutput(tty.runseccommands(3), siftout=[tty.prompt, 'show'])
-		else: levels = Format.siftoutput(tty.rununseccommands(3), siftout=[tty.prompt, 'show'])
+		interface = tty.commands[0].split()[2]
 		for i in range(len(levels)):
 			if re.search('dBm', levels[i]):
 				levels[i] = levels[i].split('W')[1].strip()
@@ -75,39 +102,36 @@ for entry in output:
 		if len(levels) > 2: 
 			i = 0
 			for i in range(10):
-				print interface + '   Lane ' + str(i) + '  tx =' + levels[i] + '  rx =' + levels[i+10]
+				line = interface + '\tLane ' + str(i) + '\ttx =' + levels[i] + '\trx =' + levels[i+10]
+				print line
 				if int(levels[i][3]) >= 7 or int(levels[i+10][3]) >= 7:
-					lowlight.append(interface + '  tx =' + levels[i] + '  rx =' + levels[i+10] + "  = Lane " + str(i))
-			print interface + '   TOTAL   tx ='+ levels[20] + '  rx =' + levels[21]
+					lowlight.append(line)
+			print interface + '\tTOTAL\ttx ='+ levels[20] + '\trx =' + levels[21]
 		else:
-			print interface + '  tx ='+ levels[0] + '  rx =' + levels[1]
+			print interface + '\t\ttx ='+ levels[0] + '\trx =' + levels[1]
 			if int(levels[0][3]) >= 7 or int(levels[1][3]) >= 7:
-				lowlight.append(interface + '  tx =' + levels[0] + '  rx =' + levels[1])
+				lowlight.append(interface + '\t\ttx =' + levels[0] + '\trx =' + levels[1])
 
 	elif tty.os == 3:  #IOS
-		tty.setcommands(['show interfaces ' + interface + ' transceiver | inc ' + interface[-3:],]) 
-		if ssh: levels = Format.siftoutput(tty.runseccommands(3), siftout=[tty.prompt, 'show'])
-		else: levels = Format.siftoutput(tty.rununseccommands(3), siftout=[tty.prompt, 'show'])
+		interface = tty.commands[0].split()[2]
 		if levels:
 			txlev = levels[0].split('-')[1].strip()
 			rxlev = levels[0].split('-')[2].strip()
-			print interface + '  tx = -'+ txlev + '  rx = -' + rxlev
+			print interface + '\ttx = -'+ txlev + '\trx = -' + rxlev
 			if int(txlev[0]) >= 7 or int(rxlev[0]) >= 7:
-				lowlight.append(interface + '  tx = -'+ txlev + '  rx = -' + rxlev)
+				lowlight.append(interface + '\ttx = -'+ txlev + '\trx = -' + rxlev)
 		else:
 			print interface + "  Optic not inserted"
 			continue
 
 	elif tty.os == 4:  #JUNOS
-		tty.setcommands(['show interfaces diagnostics optics ' + interface + ' | match dBm | except thre',])
-		if ssh: levels = Format.siftoutput(tty.runseccommands(3), siftout=[tty.username, 'show'])
-		else: levels = Format.siftoutput(tty.rununseccommands(3), siftout=[tty.username, 'show'])
+		interface = tty.commands[0].split()[4]
 		if levels:
 			rxlev = levels[0].split('/')[1].strip().strip('dBm')
 			txlev = levels[1].split('/')[1].strip().strip('dbm')
-			print interface + '  tx = '+ txlev + '  rx = ' + rxlev
+			print interface + '\ttx = '+ txlev + '\trx = ' + rxlev
 			if int(txlev[1]) >= 7 or int(rxlev[1]) >= 7:
-				lowlight.append(interface + '  tx = '+ txlev + '  rx = ' + rxlev)
+				lowlight.append(interface + '\ttx = '+ txlev + '\trx = ' + rxlev)
 		else: 
 			print interface + "  Optic not inserted"
 			continue
