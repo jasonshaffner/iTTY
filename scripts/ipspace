@@ -2,7 +2,7 @@
 #Currently supports IOS-XR, Alcatel TiMOS and Junos
 #This script will pull the avalable space in a supernet
 
-import getpass, sys , re
+import getpass, sys
 from iTTY import iTTY
 from iTTY.format import Format
 from netaddr import IPSet
@@ -35,7 +35,6 @@ tty.runcommands(command_delay)
 routetable = []
 for line in Format.siftoutput(tty.output, siftout=[tty.prompt]):
 	if line[:1] and not line[:1].isspace():
-		if re.search('Null0', line):continue
 		ipaddr = line.split('/')[0].split()[-1].strip()
 		cidr = line.split('/')[1].split()[0].strip()
 		routetable.append(ipaddr + '/' + cidr)
