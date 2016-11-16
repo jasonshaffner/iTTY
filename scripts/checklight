@@ -19,7 +19,7 @@ print ''
 card = raw_input("Card(s): ")
 if re.search('\|', card):
 	card1 = card.split('|')[0] + '/'
-	card2 = '|' + card.split('|')[1] + '/'
+	card2 = card.split('|')[1] + '/'
 if tty.login(): pass
 else:
 	print "Couldn't log in"
@@ -29,7 +29,7 @@ if tty.os == 1:
 	tty.setcommands(['environment no more', 'show port | match expression "[0-9] *Up"',])
 	if not card: tty.commands[1] += ' | match expression ^[0-9]'
 	elif re.search('\|', card):
-		tty.commands[1] += ' | match expression "^[' + card1 + card2 + ']/"'
+		tty.commands[1] += ' | match expression "^[' + card1 + '|' + card2 + ']/"'
 	else: tty.commands[1] += ' | match expression ^' + card + '/'
 	lightcommand = Command(['show port optical '], regex=regex, insertionpoints=[0], commanddelay=1)
 
@@ -37,7 +37,7 @@ elif tty.os == 2:
 	tty.setcommands(['terminal length 0', 'show ip interface br | ex Shutdown',])
 	if not card: pass
 	elif re.search('\|', card):
-	    tty.commands[1] += ' | utility egrep "E' + card1 + 'E' + card2 + '"'
+	    tty.commands[1] += ' | utility egrep "E' + card1 + '|E' + card2 + '"'
 	else: tty.commands[1] += ' | inc E' + card + '/'
 	lightcommand = Command(['show controllers ', ' phy | utility egrep -e "[TR]x [Pp]"'], 
 			       regex=regex, insertionpoints=[0], commanddelay=3)
@@ -46,7 +46,7 @@ elif tty.os == 3:
 	tty.setcommands(['terminal length 0', 'show ip interface br',])
 	if not card: tty.commands[1] = commands[1] + ' | ex admin'
 	if re.search('\|', card):
-	    tty.commands[1] += ' | inc ' + card1 + '[0-9] .*up' + card2 + '[0-9] .*up'
+	    tty.commands[1] += ' | inc ' + card1 + '[0-9] .*up|' + card2 + '[0-9] .*up'
 	else:
 	    tty.commands[1] += ' | inc ' + card + '/[0-9] .*up'
 	lightcommand = Command(['show interfaces ', ' transceiver | in [0-9]'], regex=regex, insertionpoints=[0], commanddelay=1)
@@ -55,7 +55,7 @@ elif tty.os == 4:
     	tty.setcommands(['set cli screen-length 0', 'show interfaces terse | except down | except \. | match "ge-|xe-"'])
 	if not card: pass
 	elif re.search('\|', card):
-	    tty.commands[1] += ' | match "' + card1 + card2 + '/"'
+	    tty.commands[1] += ' | match "' + card1 + '|' + card2 + '/"'
 	else:
 	    tty.commands[1] += ' | match ' + card + '/'
 	lightcommand = Command(['show interfaces diagnostics optics ', ' | match dBm | except thre'], 
@@ -65,7 +65,7 @@ else:
 	exit()
 
 lowlight = [] 
-output = Format.siftoutput(tty.runcommands(3), siftout=[tty.prompt])
+output = Format.siftoutput(tty.runcommands(5), siftout=[tty.prompt])
 commands = Command_parser.generate_commands(lightcommand, output)
 command_delay = lightcommand.commanddelay
 for command in commands:
@@ -100,15 +100,18 @@ for command in commands:
 				continue
 
 		if len(levels) > 2: 
-			i = 0
-			for i in range(10):
-				line = interface + '\tLane ' + str(i) + '\ttx =' + levels[i] + '\trx =' + levels[i+10]
+			for i in range((len(levels)-2)/2):
+				line = interface + '\tLane ' + str(i+1) + '\ttx =' + levels[i] + '\trx =' + levels[i+(len(levels)-2)/2]
 				print line
-				if int(levels[i][3]) >= 7 or int(levels[i+10][3]) >= 7:
+				tx = int(re.sub('[^0-9]+', '', levels[i].split('.')[0]))
+				rx = int(re.sub('[^0-9]+', '', levels[i+(len(levels)-2)/2].split('.')[0]))
+				if tx >= 7 or rx >= 7:
 					lowlight.append(line)
-			print interface + '\tTOTAL\ttx ='+ levels[20] + '\trx =' + levels[21]
+			print interface + '\tTOTAL\ttx ='+ levels[-2] + '\trx =' + levels[-1]
 		else:
 			print interface + '\t\ttx ='+ levels[0] + '\trx =' + levels[1]
+			if int(levels[0][3]) == "-inf": levels[0][3] = 40 
+			if int(levels[1][3]) == "-inf": levels[1][3] = 40
 			if int(levels[0][3]) >= 7 or int(levels[1][3]) >= 7:
 				lowlight.append(interface + '\t\ttx =' + levels[0] + '\trx =' + levels[1])
 

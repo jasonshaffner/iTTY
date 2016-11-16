@@ -45,7 +45,7 @@ tty.runcommands(10)
 interfaces = Format.siftoutput(tty.output)
 output = [['FLAPS', 'INTERFACE', 'ADMIN', 'OPER', 'DESCRIPTION'],]
 for line in interfaces:
-	li = line.split(' ')
+	li = re.sub(' +', ' ', line).split(' ', 3)
 	l = li[0][2:]
 	for lin in report:
 		intnum = lin[0].split('E')[-1]
