@@ -15,7 +15,7 @@ else:
 	devicelist = sys.argv[3]
 hostnames = open(devicelist, 'r')
 threadcount = 1000
-commanddelay = 1
+commanddelay = 3
 junos = ['show configuration snmp contact', ]
 ios = ['show snmp contact']
 xr = ['show run | in contact', ]
