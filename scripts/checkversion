@@ -54,6 +54,7 @@ for t in threads:
 			platform = 'Cisco ASA'
 			model = output[1].split()[1].strip(',')
 			version = output[0].split()[-1].strip()
+		else: continue
 		report.append([t.host, platform, model, version])
 	except: print "No data available for " + t.host.strip()
 print Format.columnize(report, width=6, bars=1)
