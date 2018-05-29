@@ -24,7 +24,7 @@ junos = ['set cli screen-length 0', 'show version']
 threads = []
 pool = Semaphore(1000)
 for host in hostnames:
-	thread = Mpcommand(username, password, host.split('.')[0].strip(), commanddelay, pool=pool, \
+	thread = Mpcommand(username, password, host, commanddelay, pool=pool, \
 		junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, commandheader=0)
 	threads.append(thread)
 	thread.start()

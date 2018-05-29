@@ -30,12 +30,14 @@ class Mpcommand(Thread):
 			elif self.tty.os == 4:self.tty.setcommands(self.junoscommands)
 			elif self.tty.os == 5:self.tty.setcommands(self.asacommands)
 			else: return
-			output = self.tty.runcommands(self.commanddelay, commandheader=self.commandheader, done=True)
+			output = self.tty.runcommands(self.commanddelay, commandheader=self.commandheader)
 		else:
 			print "Could not log in to " + self.host.strip()
+			self.tty.logout()
 			if self.pool: self.pool.release()
 			return
 		self.tty.setoutput(Format.siftoutput(output, siftout=[self.username, self.password, self.tty.prompt]))
+		self.tty.logout()
 		if self.pool: self.pool.release()
 		return
 
@@ -58,9 +60,11 @@ class Mpinteractivecommand(Mpcommand):
 				output = self.tty.runcommands(self.commanddelay, commandheader=self.commandheader) 
 		else:
 			print "Could not log in to " + self.host.strip()
+			self.tty.logout()
 			if self.pool: self.pool.release()
 			return
 		output = self.tty.getoutput()
 		self.tty.setoutput(Format.siftoutput(output, siftout=[self.username, self.password, self.tty.prompt]))
+		self.tty.logout()
 		if self.pool: self.pool.release()
 		return

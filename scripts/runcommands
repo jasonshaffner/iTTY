@@ -18,7 +18,7 @@ else:
 	configs = sys.argv[4]
 hostnames = open(devicelist, 'r')
 if "y" in configs: command_delay = 1
-else: command_delay = 5 #Seconds to wait for each command to finish
+else: command_delay = 10 #Seconds to wait for each command to finish
 manager = Manager()
 report = manager.list([])
 threadcount = 1000
