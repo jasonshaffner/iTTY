@@ -1,6 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #Currently supports IOS-XR, Alcatel TiMOS and Junos
-#This script will compare routing tables from two routers and print overlapping space
+#This script will compare routing tables from two routers and print(overlapping space)
 
 import getpass, sys
 from iTTY import iTTY
@@ -9,11 +9,11 @@ from iTTY.mpcommandthread import Mpcommand
 from netaddr import IPSet
 
 if len(sys.argv) < 5:
-	username = raw_input("Username: ")
+	username = input("Username: ")
 	password = getpass.getpass()
-        host1 = raw_input("Device 1: ")
-	host2 = raw_input("Device 2: ")
-	prefix = raw_input("Prefix to look up: ")
+        host1 = input("Device 1: ")
+	host2 = input("Device 2: ")
+	prefix = input("Prefix to look up: ")
 else:
         username = sys.argv[1]
 	password = sys.argv[2]
@@ -46,12 +46,12 @@ common = routetable[0] & routetable[1]
 routes1 = IPSet(routetable[0] - common)
 routes2 = IPSet(routetable[1] - common)
 overlaps = routes1 & routes2
-print "\n\n********Routes that overlap********\n\n"
+print("\n\n********Routes that overlap********\n\n")
 for cidr in overlaps.iter_cidrs():
-	print cidr
-print "\n\n********Unshared Routes on " + host1 + "********\n\n"
+	print(cidr)
+print("\n\n********Unshared Routes on " + host1 + "********\n\n")
 for cidr in routes1.iter_cidrs():
-	print cidr
-print "\n\n********Unshared Routes on " + host2 + "********\n\n"
+	print(cidr)
+print("\n\n********Unshared Routes on " + host2 + "********\n\n")
 for cidr in routes2.iter_cidrs():
-	print cidr
+	print(cidr)

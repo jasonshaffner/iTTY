@@ -1,5 +1,5 @@
 import getpass, telnetlib, os, sys, time, re, paramiko
-from format import Format
+from .format import Format
 paramiko.util.log_to_file('/dev/null')
 
 class iTTY: 
@@ -32,7 +32,7 @@ class iTTY:
 	#Sets username and password used for login
 	def setlogin(self, **kwargs):
 		self.username = kwargs.get('username', None)
-		if not self.username: self.username = raw_input("Username: ")
+		if not self.username: self.username = input("Username: ")
 		self.password = kwargs.get('password', None)
 		if not self.password: self.password = getpass.getpass()
 		return
@@ -50,13 +50,13 @@ class iTTY:
 	def verifyloginparameters(self):
 		flag = 1
 		if not self.username:
-			print "No username specified"
+			print("No username specified")
 			flag = 0
 		if not self.password:
-			print "No password specified"
+			print("No password specified")
 			flag = 0
 		if not self.host:
-			print "No host specified"
+			print("No host specified")
 			flag = 0
 		return flag
 
@@ -125,9 +125,9 @@ class iTTY:
 			self.host = kwargs.get('host', None)
 			self.username = kwargs.get('username', None)
 			self.password = kwargs.get('password', None)
-		if not self.verifyloginparameters(): return
+		if not self.verifyloginparameters():
+			return
 		if self.securelogin() or self.unsecurelogin(): return self.os
-		else: return 0
 
 	#Attempts to login to devices via SSH, returns OS type if successful, if not returns 0
 	def securelogin(self, **kwargs):
@@ -142,11 +142,11 @@ class iTTY:
 			self.session.connect(self.host.strip('\n'), username=self.username, password=self.password, look_for_keys=False, allow_agent=False)
 			self.shell = self.session.invoke_shell()
 			time.sleep(3)  #Allow time to log in and strip MOTD
-			self.prompt = self.shell.recv(1000).split('\n')[-1].strip()
+			self.prompt = str(self.shell.recv(1000)).split('\n')[-1].strip()
 			self.setos(self.prompt)
 			return self.os
-		except: 
-			return 0
+		except:
+			return
 
 	#Attempts fo login to devices via Telnet, returns OS type if successful, if not returns 0
 	def unsecurelogin(self, **kwargs):
@@ -155,7 +155,7 @@ class iTTY:
 			self.username = kwargs.get('username', None)
 			self.password = kwargs.get('password', None)
 		if not self.verifyloginparameters(): return
-		try:    
+		try:
 			self.session = telnetlib.Telnet(self.host.strip('\n'),23,3)
 			self.session.expect(['sername:','ogin'],5)
 			self.session.write(self.username + '\r')
@@ -164,23 +164,22 @@ class iTTY:
 			software, match, previous_text = self.session.expect(['[A-B]:.*#' ,'CPU.*#' , '.*#' , self.username + '@.*>'], 7)
 			self.prompt = previous_text.split('\n')[-1].strip()
 			self.setos(self.prompt)
-		except: 
-			return 0
+		except:
+			return
 		return self.os
 
 	def runcommands(self, command_delay, commandheader=0, done=False):
 		if self.shell: return self.runseccommands(command_delay, commandheader=commandheader, done=done)
 		elif self.session: return self.rununseccommands(command_delay, commandheader=commandheader, done=done)
-		else: return 0
 
 	#Runs commands when logged in via SSH, returns output
 	def runseccommands(self, command_delay, commandheader=0, done=False):
 		for command in self.getcommands():
 			self.shell.send(command.strip() + '\r')
 			time.sleep(command_delay)
-			if commandheader: 
+			if commandheader:
 				self.addtooutput(['\n' + Format.underline(command), ])
-			self.addtooutput(self.shell.recv(500000).split('\n')[1:])
+			self.addtooutput(self.shell.recv(500000).decode().split('\n')[1:])
 		if done: self.logout()
 		return self.getoutput()
 
@@ -190,7 +189,7 @@ class iTTY:
 			self.session.write(command.strip() + '\r')
 			n, m, output = self.session.expect([self.prompt, ], command_delay)
 			time.sleep(command_delay)
-			if commandheader: 
+			if commandheader:
 				self.addtooutput(['\n' + Format.underline(command), ])
 			self.addtooutput(output.split('\n')[1:])
 		if done: self.logout()

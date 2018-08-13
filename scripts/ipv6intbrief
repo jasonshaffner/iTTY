@@ -1,13 +1,13 @@
-#!/bin/env python
+#!/bin/env python3
 
 import getpass, sys, threading, re
 from iTTY.mpcommandthread import Mpcommand
 from iTTY.format import Format
 
 if len(sys.argv) < 5:
-        username = raw_input("Username: ")
+        username = input("Username: ")
         password = getpass.getpass()
-        devicelist = raw_input("Device list file: ")
+        devicelist = input("Device list file: ")
 else:
         username = sys.argv[1]
         password = sys.argv[2]
@@ -45,7 +45,7 @@ for t in threads:
 				else: address = line.split()[-1].strip()
 				report.append([t.host, interface, address])
         except:
-                print "No data available for " + t.host.strip()
+                print("No data available for " + t.host.strip())
 hostnames.close()
 report = sorted(report, key=lambda hostname: hostname[0])
-print Format.columnize(report, bars=1, width=5)
+print(Format.columnize(report, bars=1, width=5))
