@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #Currently supports IOS-XR, Alcatel TiMOS and Junos
 #This script will pull the avalable space in a supernet
 
@@ -10,8 +10,8 @@ from netaddr import IPSet
 tty = iTTY()
 if len(sys.argv) < 5:
         tty.setlogin()
-        tty.sethost(raw_input("Device: "))
-	prefix = raw_input("Prefix to look up: ")
+        tty.sethost(input("Device: "))
+	prefix = input("Prefix to look up: ")
 else:
         tty.setlogin(username=sys.argv[1],password=sys.argv[2])
         tty.sethost(sys.argv[3].split('.', 1)[0])
@@ -26,10 +26,10 @@ if tty.login():
 	elif tty.os == 2: tty.setcommands(xr)
 	elif tty.os == 4: tty.setcommands(junos)
 	else: 
-		print "OS is not supported at this time"
+		print("OS is not supported at this time")
 		exit()
 else:
-	print "Couldn't log in."
+	print("Couldn't log in.")
 	exit()
 tty.runcommands(command_delay)
 routetable = []
@@ -42,6 +42,6 @@ ipv4_addr_space = IPSet({prefix})
 router_routes = IPSet(routetable)
 unavailable = router_routes
 available = ipv4_addr_space ^ unavailable
-print "\n\n********IP Space that is NOT in routing********\n\n"
+print("\n\n********IP Space that is NOT in routing********\n\n")
 for cidr in available.iter_cidrs():
-	print cidr
+	print(cidr)

@@ -21,7 +21,7 @@ class Format(object):
 
 	@staticmethod
 	def makeline(count, linechar="-"):
-		return linechar * count
+		return linechar * int(count)
 
 	@staticmethod
 	def pad(input, count, padchar=" "):
@@ -58,32 +58,32 @@ class Format(object):
 			output += tmp + '\n'
 		return output
 
-        @staticmethod
-        def get_next_command(command, input):
-                commands = []
-                if isinstance(command[1], str):
-                        regex = command.pop(1)
-                        for entry in input:
-                                for line in entry:
-                                        if re.search(regex, line):
-                                                commands.append(Format.process_command(command, line=line))
-                else:
-                        commands.append(Format.process_command(command))
-                return commands
+		@staticmethod
+		def get_next_command(command, input):
+			commands = []
+			if isinstance(command[1], str):
+				regex = command.pop(1)
+				for entry in input:
+					for line in entry:
+						if re.search(regex, line):
+							commands.append(Format.process_command(command, line=line))
+						else:
+							commands.append(Format.process_command(command))
+			return commands
 
-        @staticmethod
-        def process_command(command, line=""):
-                if len(command) == 1: 
-                        built = ''
-                        for piece in command[0]:
-                                built += piece 
-                        print "built: " + built
-                        return built
-                points = command[1]
-                i = 1
-                for point in points:
-                        insertion = i * 2 - 1
-                        print "point: " + str(point)
-                        print "insertion: " + entry.split()[point]
-                        command[0].insert(insertion, entry.split()[point])
-                return Format.process_command([command[0]])
+	@staticmethod
+	def process_command(command, line=""):
+		if len(command) == 1: 
+			built = ''
+			for piece in command[0]:
+				built += piece 
+			print("built: " + built)
+			return built
+		points = command[1]
+		i = 1
+		for point in points:
+			insertion = i * 2 - 1
+			print("point: " + str(point))
+			print("insertion: " + entry.split()[point])
+		command[0].insert(insertion, entry.split()[point])
+		return Format.process_command([command[0]])

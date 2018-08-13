@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import getpass, sys
 from threading import Semaphore
@@ -6,9 +6,9 @@ from iTTY.format import Format
 from iTTY.mpcommandthread import Mpcommand
 
 if len(sys.argv) < 5:
-	username = raw_input("Username: ")
+	username = input("Username: ")
 	password = getpass.getpass()
-	devicelist = raw_input("Device list file: ")
+	devicelist = input("Device list file: ")
 else:
 	username = sys.argv[1]
 	password = sys.argv[2]
@@ -34,6 +34,6 @@ for t in threads:
 	try:
 		report.append([t.host.strip(), t.tty.getoutput()[-1].split()[-1].strip('"').strip(';').strip()])
 	except:
-		print "No data available for " + t.host.strip()
+		print("No data available for " + t.host.strip())
 hostnames.close()
-print Format.columnize(report, bars=1)
+print(Format.columnize(report, bars=1))

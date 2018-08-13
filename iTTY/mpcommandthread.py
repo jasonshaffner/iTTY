@@ -1,7 +1,7 @@
 from threading import Thread
-from iTTY import iTTY
-from format import Format
-from command import Command_parser
+from .iTTY import iTTY
+from .format import Format
+from .command import Command_parser
 import re
 
 #Subclass of Thread, used for concurrent logins across multiple devices
@@ -32,7 +32,7 @@ class Mpcommand(Thread):
 			else: return
 			output = self.tty.runcommands(self.commanddelay, commandheader=self.commandheader)
 		else:
-			print "Could not log in to " + self.host.strip()
+			print("Could not log in to " + self.host.strip())
 			self.tty.logout()
 			if self.pool: self.pool.release()
 			return
@@ -59,7 +59,7 @@ class Mpinteractivecommand(Mpcommand):
 				self.tty.setcommands(Command_parser.generate_commands(command, output))
 				output = self.tty.runcommands(self.commanddelay, commandheader=self.commandheader) 
 		else:
-			print "Could not log in to " + self.host.strip()
+			print("Could not log in to " + self.host.strip())
 			self.tty.logout()
 			if self.pool: self.pool.release()
 			return

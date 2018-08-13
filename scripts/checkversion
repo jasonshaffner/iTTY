@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import getpass, sys, re
 from threading import Semaphore
@@ -7,9 +7,9 @@ from iTTY.mpcommandthread import Mpcommand
 from iTTY.format import Format
 
 if len(sys.argv) < 4:
-	username = raw_input("Username: ")
+	username = input("Username: ")
 	password = getpass.getpass()
-	devicelist = raw_input("Device list file: ")
+	devicelist = input("Device list file: ")
 else:
 	username = sys.argv[1]
 	password = sys.argv[2]
@@ -31,31 +31,31 @@ for host in hostnames:
 report = [['Hostname', 'Platform', 'Model', 'Version'],]
 for t in threads: 
 	t.join()
-	try:
-		output = t.tty.getoutput()
-		if t.tty.os == 1: #ALU
-			platform = 'Alcatel TiMOS'
-			model = output[0].split('ALCATEL')[1].split('Copyright')[0].strip()
-			version = output[0].split()[0].split('-')[-1]
-		elif t.tty.os == 2: #XR
-			platform = 'Cisco IOS XR'
-			model = output[1].split()[1]
-			version = output[0].split()[-1].split('[')[0]
-		elif t.tty.os == 3: #IOS
-			platform = 'Cisco IOS'
-			model = output[-1].split()[1]
-			version = output[0].split('Version')[1].split()[0].strip(',')
-		elif t.tty.os == 4: #JUNOS
-			platform = 'Juniper JUNOS'
-			for l in output: 
-				if l.startswith('Model'): model = l.split()[1]
-				if re.search('OS Software', l): version = l.split()[-1][1:-1]
-		elif t.tty.os == 5: #ASA
-			platform = 'Cisco ASA'
-			model = output[1].split()[1].strip(',')
-			version = output[0].split()[-1].strip()
-		else: continue
-		report.append([t.host, platform, model, version])
-	except: print "No data available for " + t.host.strip()
-print Format.columnize(report, width=6, bars=1)
+#	try:
+	output = t.tty.getoutput()
+	if t.tty.os == 1: #ALU
+		platform = 'Alcatel TiMOS'
+		model = output[0].split('ALCATEL')[1].split('Copyright')[0].strip()
+		version = output[0].split()[0].split('-')[-1]
+	elif t.tty.os == 2: #XR
+		platform = 'Cisco IOS XR'
+		model = output[1].split()[1]
+		version = output[0].split()[-1].split('[')[0]
+	elif t.tty.os == 3: #IOS
+		platform = 'Cisco IOS'
+		model = output[-1].split()[1]
+		version = output[0].split('Version')[1].split()[0].strip(',')
+	elif t.tty.os == 4: #JUNOS
+		platform = 'Juniper JUNOS'
+		for l in output: 
+			if l.startswith('Model'): model = l.split()[1]
+			if re.search('OS Software', l): version = l.split()[-1][1:-1]
+	elif t.tty.os == 5: #ASA
+		platform = 'Cisco ASA'
+		model = output[1].split()[1].strip(',')
+		version = output[0].split()[-1].strip()
+	else: continue
+	report.append([t.host, platform, model, version])
+	#except: print("No data available for " + t.host.strip())
+print(Format.columnize(report, width=6, bars=1))
 hostnames.close()
