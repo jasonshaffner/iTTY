@@ -3,7 +3,7 @@ import re, sys
 class Format(object):
 	#Cleans up and provides basic formatting for output
 	@staticmethod
-	def siftoutput(input, **kwargs): 
+	def siftoutput(input, **kwargs):
 		siftout = kwargs.get('siftout', [])
 		dontprint = ['enable', 'Password:', 'terminal length', 'screen-length', 'Screen length', \
 			'terminal pager', 'environment no more', '{master', 'Building config', \
@@ -11,7 +11,7 @@ class Format(object):
 		output= []
 		for entry in input:
 			for line in entry:
-				if not line.strip() or any(n in line for n in dontprint): continue
+				if not line.strip() or any(str(n) in line for n in dontprint): continue
 				output.append(line)
 		return output
 
