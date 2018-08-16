@@ -135,7 +135,7 @@ class iTTY:
 			self.shell = self.session.invoke_shell()
 			time.sleep(3)  #Allow time to log in and strip MOTD
 			self.prompt = self.shell.recv(1000).decode().split('\n')[-1].strip()
-			self.setos(str(self.prompt))
+			self.setos(self.prompt)
 			return self.os
 		except: return
 
@@ -180,7 +180,7 @@ class iTTY:
 	def rununseccommands(self, command_delay, commandheader=0, done=False):
 		for command in self.commands:
 			self.session.write((command.strip() + '\r').encode())
-			n, m, output = self.session.expect([self.prompt, ], command_delay)
+			n, m, output = self.session.expect([re.compile(self.prompt), ], command_delay)
 			time.sleep(command_delay)
 			if commandheader:
 				self.addtooutput(['\n' + _underline(command), ])
