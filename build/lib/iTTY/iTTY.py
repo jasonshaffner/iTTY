@@ -146,13 +146,15 @@ class iTTY:
 			self.password = kwargs.get('password', None)
 		if not self.verifyloginparameters(): return
 		try:
-			self.session = telnetlib.Telnet(self.host.strip('\n'),23,3)
-			self.session.expect(['sername:','ogin'],5)
-			self.session.write(self.username + '\r')
-			self.session.read_until('assword:')
-			self.session.write(self.password + '\r')
-			software, match, previous_text = self.session.expect(['[A-B]:.*#' ,'CPU.*#' , '.*#' , self.username + '@.*>'], 7)
-			self.prompt = previous_text.split('\n')[-1].decode().strip()
+			loginregex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
+			promptregex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
+			self.session = telnetlib.Telnet(self.host.strip('\n').encode(),23,3)
+			self.session.expect([loginregex, ] ,5)
+			self.session.write((self.username + '\r').encode())
+			self.session.read_until(b'assword')
+			self.session.write((self.password + '\r').encode())
+			software, match, previous_text = self.session.expect([promptregex,], 7)
+			self.prompt = previous_text.decode().split('\n')[-1].strip()
 			self.setos(self.prompt)
 			return self.os
 		except: return
@@ -175,12 +177,12 @@ class iTTY:
 	#Runs commands when logged in via Telnet, returns output
 	def rununseccommands(self, command_delay, commandheader=0, done=False):
 		for command in self.commands:
-			self.session.write(command.strip() + '\r')
-			n, m, output = self.session.expect([self.prompt, ], command_delay)
+			self.session.write((command.strip() + '\r').encode())
+			n, m, output = self.session.expect([self.prompt.encode(), ], command_delay)
 			time.sleep(command_delay)
 			if commandheader:
 				self.addtooutput(['\n' + _underline(command), ])
-			self.addtooutput(output.split('\n')[1:])
+			self.addtooutput(output.decode().split('\n')[1:])
 		if done: self.logout()
 		return self.getoutput()
 
