@@ -200,8 +200,8 @@ class iTTY:
 				output.append(line)
 		return output
 
-	def _underline(input, linechar="-"):
-		return input.strip() + '\n' + _makeline(len(input.strip()), linechar)
+def _underline(input, linechar="-"):
+	return input.strip() + '\n' + _makeline(len(input.strip()), linechar)
 
-	def _makeline(count, linechar="-"):
-		return linechar * int(count)
+def _makeline(count, linechar="-"):
+	return linechar * int(count)
