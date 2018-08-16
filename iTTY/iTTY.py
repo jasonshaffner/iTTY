@@ -147,19 +147,19 @@ class iTTY:
 			self.password = kwargs.get('password', None)
 		if not self.verifyloginparameters(): return
 		if type(self.password) != bytes: self.password = self.password.encode()
-		#try:
-		loginregex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
-		promptregex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
-		self.session = telnetlib.Telnet(self.host.strip('\n').encode(),23,3)
-		self.session.expect([loginregex, ] ,5)
-		self.session.write(self.username.encode() + b'\r')
-		self.session.read_until(b'assword')
-		self.session.write(self.password + b'\r')
-		software, match, previous_text = self.session.expect([promptregex,], 7)
-		self.prompt = previous_text.split(b'\n')[-1].strip()
-		self.setos(self.prompt)
-		return self.os
-		#except: return
+		try:
+			loginregex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
+			promptregex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
+			self.session = telnetlib.Telnet(self.host.strip('\n').encode(),23,3)
+			self.session.expect([loginregex, ] ,5)
+			self.session.write(self.username.encode() + b'\r')
+			self.session.read_until(b'assword')
+			self.session.write(self.password + b'\r')
+			software, match, previous_text = self.session.expect([promptregex,], 7)
+			self.prompt = previous_text.split(b'\n')[-1].strip()
+			self.setos(self.prompt)
+			return self.os
+		except: return
 
 	def runcommands(self, command_delay, commandheader=0, done=False):
 		if self.shell: return self.runseccommands(command_delay, commandheader=commandheader, done=done)
