@@ -1,8 +1,6 @@
 from threading import Thread
-from format import Format
 from .iTTY import iTTY
 from .command import Command_parser
-import re
 
 #Subclass of Thread, used for concurrent logins across multiple devices
 class Mpcommand(Thread):
