@@ -2,7 +2,7 @@
 
 import getpass, sys, threading, re
 from iTTY.mpcommandthread import Mpcommand
-from format import Format
+from formatter import Formatter
 
 if len(sys.argv) < 5:
         username = input("Username: ")
@@ -48,4 +48,4 @@ for t in threads:
                 print("No data available for " + t.host.strip())
 hostnames.close()
 report = sorted(report, key=lambda hostname: hostname[0])
-print(Format.columnize(report, bars=1, width=5))
+print(Formatter.columnize(report, bars=1, width=5))

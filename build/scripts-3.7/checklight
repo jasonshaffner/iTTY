@@ -4,7 +4,7 @@
 import re
 from iTTY import iTTY
 from iTTY.command import Command, Command_parser
-from format import Format
+from formatter import Formatter
 
 tty = iTTY()
 tty.setlogin()
@@ -142,6 +142,6 @@ for command in commands:
 			continue
 
 if lowlight:
-	print('\n\n' + Format.pad('Interfaces under -7', 20, padchar="*") + '\n')
+	print('\n\n' + Formatter.pad('Interfaces under -7', 20, padchar="*") + '\n')
 	for d in lowlight: print(d)
-	print('\n' + Format.makeline(61, linechar="*") + '\n')
+	print('\n' + Formatter.makeline(61, linechar="*") + '\n')

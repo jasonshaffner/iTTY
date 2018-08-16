@@ -4,7 +4,6 @@
 
 import getpass, sys
 from iTTY import iTTY
-from format import Format
 from netaddr import IPSet
 
 tty = iTTY()
