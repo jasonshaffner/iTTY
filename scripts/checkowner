@@ -2,7 +2,7 @@
 
 import getpass, sys
 from threading import Semaphore
-from formatter import Formatter
+from stringutils import StringUtils
 from iTTY.mpcommandthread import Mpcommand
 
 if len(sys.argv) < 5:
@@ -36,4 +36,4 @@ for t in threads:
 	except:
 		print("No data available for " + t.host.strip())
 hostnames.close()
-print(Formatter.columnize(report, bars=1))
+print(StringUtils.columnize(report, bars=1))

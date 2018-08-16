@@ -2,7 +2,7 @@
 
 import time, re, sys
 from iTTY import iTTY
-from format import Format
+from formatter import Formatter
 
 tty = iTTY()
 hour = 0
@@ -56,4 +56,4 @@ for line in interfaces:
 			output.append(li)
 			report.remove(lin)
 			break
-print(Format.columnize(output, bars=1, width=5))
+print(Formatter.columnize(output, bars=1, width=5))
