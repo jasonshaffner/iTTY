@@ -62,13 +62,14 @@ class iTTY:
 
 	#Takes prompt as arg, returns digit signifying type of OS
 	def setos(self, prompt):
-		if re.search('[A-B]:.*#', prompt): self.os = 1 #ALU
-		elif re.search('CPU.*#', prompt): self.os = 2  #XR
-		elif re.search('.*#', prompt): self.os = 3     #IOS
-		elif re.search(self.username + '@.*>', prompt): self.os = 4  #JUNOS
-		elif re.search('.*>', prompt): 
+		if re.search('[A-B]:.*#', str(prompt)): self.os = 1 #ALU
+		elif re.search('CPU.*#', str(prompt)): self.os = 2  #XR
+		elif re.search('.*#', str(prompt)): self.os = 3     #IOS
+		elif re.search(self.username + '@.*>', str(prompt)): self.os = 4  #JUNOS
+		elif re.search('.*>', str(prompt)):
 			self.os = 5  #ASA
-			self.prompt = self.prompt.strip()[0:-1] + '#'
+			if self.shell: self.prompt = self.prompt.strip()[0:-1] + '#'
+			elif self.session: self.prompt = self.prompt.strip()[0:-1] + b'#'
 		return self.os
 
 	#Returns digit signifying type of OS
@@ -145,19 +146,20 @@ class iTTY:
 			self.username = kwargs.get('username', None)
 			self.password = kwargs.get('password', None)
 		if not self.verifyloginparameters(): return
-		try:
-			loginregex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
-			promptregex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
-			self.session = telnetlib.Telnet(self.host.strip('\n').encode(),23,3)
-			self.session.expect([loginregex, ] ,5)
-			self.session.write((self.username + '\r').encode())
-			self.session.read_until(b'assword')
-			self.session.write((self.password + '\r').encode())
-			software, match, previous_text = self.session.expect([promptregex,], 7)
-			self.prompt = previous_text.decode().split('\n')[-1].strip()
-			self.setos(self.prompt)
-			return self.os
-		except: return
+		if type(self.password) != bytes: self.password = self.password.encode()
+		#try:
+		loginregex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
+		promptregex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
+		self.session = telnetlib.Telnet(self.host.strip('\n').encode(),23,3)
+		self.session.expect([loginregex, ] ,5)
+		self.session.write(self.username.encode() + b'\r')
+		self.session.read_until(b'assword')
+		self.session.write(self.password + b'\r')
+		software, match, previous_text = self.session.expect([promptregex,], 7)
+		self.prompt = previous_text.split(b'\n')[-1].strip()
+		self.setos(self.prompt)
+		return self.os
+		#except: return
 
 	def runcommands(self, command_delay, commandheader=0, done=False):
 		if self.shell: return self.runseccommands(command_delay, commandheader=commandheader, done=done)
@@ -178,7 +180,7 @@ class iTTY:
 	def rununseccommands(self, command_delay, commandheader=0, done=False):
 		for command in self.commands:
 			self.session.write((command.strip() + '\r').encode())
-			n, m, output = self.session.expect([self.prompt.encode(), ], command_delay)
+			n, m, output = self.session.expect([self.prompt, ], command_delay)
 			time.sleep(command_delay)
 			if commandheader:
 				self.addtooutput(['\n' + _underline(command), ])
