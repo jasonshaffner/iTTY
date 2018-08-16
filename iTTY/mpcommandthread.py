@@ -21,19 +21,19 @@ class Mpcommand(Thread):
 
 	def run(self):
 		if self.pool: self.pool.acquire()
-		try:
-			with self.tty:
-				if self.tty.os == 1:self.tty.setcommands(self.alucommands)
-				elif self.tty.os == 2:self.tty.setcommands(self.xrcommands)
-				elif self.tty.os == 3:self.tty.setcommands(self.ioscommands)
-				elif self.tty.os == 4:self.tty.setcommands(self.junoscommands)
-				elif self.tty.os == 5:self.tty.setcommands(self.asacommands)
-				else: return
-				output = self.tty.runcommands(self.commanddelay, commandheader=self.commandheader)
-		except:
-			print("Could not log in to: " + self.tty.host)
-			if self.pool: self.pool.release()
-			return
+#		try:
+		with self.tty:
+			if self.tty.os == 1:self.tty.setcommands(self.alucommands)
+			elif self.tty.os == 2:self.tty.setcommands(self.xrcommands)
+			elif self.tty.os == 3:self.tty.setcommands(self.ioscommands)
+			elif self.tty.os == 4:self.tty.setcommands(self.junoscommands)
+			elif self.tty.os == 5:self.tty.setcommands(self.asacommands)
+			else: return
+			output = self.tty.runcommands(self.commanddelay, commandheader=self.commandheader)
+#		except:
+#			print("Could not log in to: " + self.tty.host)
+#			if self.pool: self.pool.release()
+#			return
 		self.tty.setoutput(self.tty.siftoutput(self.username, self.password, self.tty.prompt))
 		if self.pool: self.pool.release()
 
