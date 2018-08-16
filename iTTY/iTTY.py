@@ -1,5 +1,4 @@
 import getpass, telnetlib, time, re, paramiko
-from format import Format
 paramiko.util.log_to_file('/dev/null')
 
 class iTTY:
@@ -168,7 +167,7 @@ class iTTY:
 			self.shell.send(command.strip() + '\r')
 			time.sleep(command_delay)
 			if commandheader:
-				self.addtooutput(['\n' + Format.underline(command), ])
+				self.addtooutput(['\n' + _underline(command), ])
 			self.addtooutput(self.shell.recv(500000).decode().split('\n')[1:])
 		if done: self.logout()
 		return self.getoutput()
@@ -180,7 +179,7 @@ class iTTY:
 			n, m, output = self.session.expect([self.prompt, ], command_delay)
 			time.sleep(command_delay)
 			if commandheader:
-				self.addtooutput(['\n' + Format.underline(command), ])
+				self.addtooutput(['\n' + _underline(command), ])
 			self.addtooutput(output.split('\n')[1:])
 		if done: self.logout()
 		return self.getoutput()
@@ -200,3 +199,9 @@ class iTTY:
 				if not line.strip() or any(str(n) in line for n in dontprint): continue
 				output.append(line)
 		return output
+
+	def _underline(input, linechar="-"):
+		return input.strip() + '\n' + _makeline(len(input.strip()), linechar)
+
+	def _makeline(count, linechar="-"):
+		return linechar * int(count)
