@@ -1,11 +1,11 @@
-from threading import Thread
+from multiprocessing import Process, Pipe
 from .iTTY import iTTY
 from .command import Command_parser
 
-#Subclass of Thread, used for concurrent logins across multiple devices
-class Mpcommand(Thread):
+#Subclass of Process, used for concurrent logins across multiple devices
+class Mpcommand(Process):
     def __init__(self, username, password, host, commanddelay, **kwargs):
-        Thread.__init__(self)
+        Process.__init__(self)
         self.username = username
         self.password = password
         self.host = host
@@ -38,6 +38,7 @@ class Mpcommand(Thread):
             return
         self.tty.setoutput(self.tty.siftoutput(self.username, self.password, self.tty.prompt))
         if self.pool: self.pool.release()
+
 
 class Mpinteractivecommand(Mpcommand):
 

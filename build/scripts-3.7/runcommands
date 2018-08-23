@@ -7,15 +7,15 @@ from stringutils import StringUtils
 from multiprocessing import Manager
 
 if len(sys.argv) < 5:
-	username = input("Username: ")
-	password = getpass.getpass()
-	devicelist = input("Device list file: ")
-	configs = input("Are you making config changes? [y/n] ")
+    username = input("Username: ")
+    password = getpass.getpass()
+    devicelist = input("Device list file: ")
+    configs = input("Are you making config changes? [y/n] ")
 else:
-	username = sys.argv[1]
-	password = sys.argv[2]
-	devicelist = sys.argv[3]
-	configs = sys.argv[4]
+    username = sys.argv[1]
+    password = sys.argv[2]
+    devicelist = sys.argv[3]
+    configs = sys.argv[4]
 hostnames = open(devicelist, 'r')
 if "y" in configs: command_delay = 1
 else: command_delay = 10 #Seconds to wait for each command to finish
@@ -24,46 +24,46 @@ threadcount = 1000
 commandfiles = 0
 junos = []
 try:
-	with open('JUNOS', 'r') as f:
-		junos = ['set cli screen-length 0'] + list(f)[:]
+    with open('JUNOS', 'r') as f:
+        junos = ['set cli screen-length 0'] + list(f)[:]
 except: pass
 ios = []
 try:
-	with open('IOS', 'r') as f:
-		ios = ['terminal length 0'] + list(f)[:]
+    with open('IOS', 'r') as f:
+        ios = ['terminal length 0'] + list(f)[:]
 except: pass
 xr = []
 try:
-	with open('XR', 'r') as f:
-		xr = ['terminal length 0'] + list(f)[:]
+    with open('XR', 'r') as f:
+        xr = ['terminal length 0'] + list(f)[:]
 except: pass
 alu = []
 try:
-	with open('ALU', 'r') as f:
-		alu = ['environment no more'] + list(f)[:]
+    with open('ALU', 'r') as f:
+        alu = ['environment no more'] + list(f)[:]
 except: pass
 asa = []
 try:
-	with open('ASA', 'r') as f:
-		asa = ['enable', password, 'terminal pager 0'] + list(f)[:]
+    with open('ASA', 'r') as f:
+        asa = ['enable', password, 'terminal pager 0'] + list(f)[:]
 except: pass
 if not any((junos, ios, xr, alu, asa)):
-	print("Couldn't find command files\r")
-	exit()
+    print("Couldn't find command files\r")
+    exit()
 pool = Semaphore(threadcount)
 threads = []
 for host in hostnames:
-	thread = Mpcommand(username, password, host, command_delay, pool=pool, \
-		junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa)
-	threads.append(thread)
-	thread.start()
+    thread = Mpcommand(username, password, host, command_delay, pool=pool, \
+        junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa)
+    threads.append(thread)
+    thread.start()
 for t in threads:
-	t.join()
-	try:
-		report.append(['\n\n' + StringUtils.pad(t.host, 15, padchar="*") + '\n', ] + t.tty.getoutput())
-	except:
-		print("No data available for " + t.host.strip()	)
+    t.join()
+    try:
+        report.append(['\n\n' + StringUtils.pad(t.host, 15, padchar="*") + '\n', ] + t.tty.getoutput())
+    except:
+        print("No data available for " + t.host.strip()    )
 hostnames.close()
 report = sorted(report, key=lambda hostname: hostname[0])
 for y in report:
-	for x in y: print(x)
+    for x in y: print(x)

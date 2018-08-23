@@ -8,16 +8,16 @@ from iTTY.mpcommandthread import Mpcommand
 from netaddr import IPSet
 
 if len(sys.argv) < 5:
-	username = input("Username: ")
-	password = getpass.getpass()
+    username = input("Username: ")
+    password = getpass.getpass()
         host1 = input("Device 1: ")
-	host2 = input("Device 2: ")
-	prefix = input("Prefix to look up: ")
+    host2 = input("Device 2: ")
+    prefix = input("Prefix to look up: ")
 else:
         username = sys.argv[1]
-	password = sys.argv[2]
+    password = sys.argv[2]
         host1 = sys.argv[3].split('.', 1)[0]
-	host2 = sys.argv[4].split('.', 1)[0]
+    host2 = sys.argv[4].split('.', 1)[0]
         prefix = sys.argv[5]
 octet = prefix.split('.')[0]
 command_delay = 20
@@ -27,30 +27,30 @@ junos = ["set cli screen-length 0", "show route range " + prefix + ' | match "^[
 hosts = [host1, host2]
 threads = []
 for host in hosts:
-	thread = Mpcommand(username, password, host, command_delay, \
+    thread = Mpcommand(username, password, host, command_delay, \
                 junoscommands=junos, xrcommands=xr, alucommands=alu, commandheader=0)
         threads.append(thread)
         thread.start()
 routetable = []
 for t in threads:
         t.join()
-	routes = set()
-	for line in t.tty.siftoutput(t.tty.prompt):
-		if line[:1] and not line[:1].isspace():
-			ipaddr = line.split('/')[0].split()[-1].strip()
-			cidr = line.split('/')[1].split()[0].strip()
-			routes.add(ipaddr + '/' + cidr)
-	routetable.append(routes)
+    routes = set()
+    for line in t.tty.siftoutput(t.tty.prompt):
+        if line[:1] and not line[:1].isspace():
+            ipaddr = line.split('/')[0].split()[-1].strip()
+            cidr = line.split('/')[1].split()[0].strip()
+            routes.add(ipaddr + '/' + cidr)
+    routetable.append(routes)
 common = routetable[0] & routetable[1]
 routes1 = IPSet(routetable[0] - common)
 routes2 = IPSet(routetable[1] - common)
 overlaps = routes1 & routes2
 print("\n\n********Routes that overlap********\n\n")
 for cidr in overlaps.iter_cidrs():
-	print(cidr)
+    print(cidr)
 print("\n\n********Unshared Routes on " + host1 + "********\n\n")
 for cidr in routes1.iter_cidrs():
-	print(cidr)
+    print(cidr)
 print("\n\n********Unshared Routes on " + host2 + "********\n\n")
 for cidr in routes2.iter_cidrs():
-	print(cidr)
+    print(cidr)

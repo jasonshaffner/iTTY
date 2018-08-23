@@ -7,15 +7,15 @@ from stringutils import StringUtils
 tty = iTTY()
 hour = 0
 if len(sys.argv) < 4:
-	tty.setlogin()
-	tty.sethost(input("Device: ").split('.', 1)[0])
-	hour = input('Time (24 hour clock): ')
+    tty.setlogin()
+    tty.sethost(input("Device: ").split('.', 1)[0])
+    hour = input('Time (24 hour clock): ')
 else:
-	tty.setlogin(username=sys.argv[1],password=sys.argv[2])
-	tty.sethost(sys.argv[3])
-	if len(sys.argv) > 4: hour = sys.argv[4]
+    tty.setlogin(username=sys.argv[1],password=sys.argv[2])
+    tty.sethost(sys.argv[3])
+    if len(sys.argv) > 4: hour = sys.argv[4]
 if hour:
-	if re.search('\:', hour): hour = "\:".join(hour.split(':'))
+    if re.search('\:', hour): hour = "\:".join(hour.split(':'))
 interface = ('GigE', 'ge-', 'te-', 'Te', 'Gi', 'Fa', 'ae', 'agg')
 month = time.strftime('%b')
 day = time.strftime('%d')
@@ -27,33 +27,33 @@ tty.setcommands(['terminal length 0', 'sh log | utility egrep -e \'' + day + '.*
 output = []
 ssh = 0
 if tty.login():
-	tty.runcommands(25)
+    tty.runcommands(25)
 else:
-	print("Couldn't log in")
-	exit()
+    print("Couldn't log in")
+    exit()
 output = tty.siftoutput()
 tty.clearoutput()
 tty.clearcommands()
 flaps = []
 for line in output:
-	if line.startswith("LC"):
-		flaps.append(line.split(",")[0].split(" ")[-1])
+    if line.startswith("LC"):
+        flaps.append(line.split(",")[0].split(" ")[-1])
 report = set()
 for y in flaps:
-	count = len([x for x in flaps if x == y])
-	report.add((y, count))
+    count = len([x for x in flaps if x == y])
+    report.add((y, count))
 tty.setcommands(['sh int desc | ex admin'])
 tty.runcommands(10)
 interfaces = tty.siftoutput()
 output = [['FLAPS', 'INTERFACE', 'ADMIN', 'OPER', 'DESCRIPTION'],]
 for line in interfaces:
-	li = re.sub(' +', ' ', line).split(' ', 3)
-	l = li[0][2:]
-	for lin in report:
-		intnum = lin[0].split('E')[-1]
-		if re.search(intnum, l) and re.search(li[0][:1], lin[0]):
-			li.insert(0, str(lin[1]))
-			output.append(li)
-			report.remove(lin)
-			break
+    li = re.sub(' +', ' ', line).split(' ', 3)
+    l = li[0][2:]
+    for lin in report:
+        intnum = lin[0].split('E')[-1]
+        if re.search(intnum, l) and re.search(li[0][:1], lin[0]):
+            li.insert(0, str(lin[1]))
+            output.append(li)
+            report.remove(lin)
+            break
 print(StringUtils.columnize(output, bars=1, width=5))
