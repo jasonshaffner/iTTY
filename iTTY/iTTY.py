@@ -180,7 +180,7 @@ class iTTY:
     def rununseccommands(self, command_delay, commandheader=0, done=False):
         for command in self.commands:
             self.session.write((command.strip() + '\r').encode())
-            n, m, output = self.session.expect([re.compile(self.prompt), ], command_delay)
+            n, m, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
             time.sleep(command_delay)
             if commandheader:
                 self.addtooutput(['\n' + _underline(command), ])
