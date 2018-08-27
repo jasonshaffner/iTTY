@@ -19,10 +19,10 @@ class Mpcommand(Thread):
         self.pool = kwargs.get('pool', None)
         self.tty = iTTY(username=username, password=password, host=host)
 
-    def run(self):
+    async def run(self):
         if self.pool: self.pool.acquire()
         try:
-            with self.tty:
+            async with self.tty:
                 if self.tty.os == 1:self.tty.setcommands(self.alucommands)
                 elif self.tty.os == 2:self.tty.setcommands(self.xrcommands)
                 elif self.tty.os == 3:self.tty.setcommands(self.ioscommands)
@@ -31,13 +31,12 @@ class Mpcommand(Thread):
                 else:
                     print("Could not log in to: " + self.tty.host)
                     return
-                output = self.tty.runcommands(self.commanddelay, commandheader=self.commandheader)
+                output = await self.tty.async_runcommands(self.commanddelay, commandheader=self.commandheader)
         except:
             print("Could not log in to: " + self.tty.host)
             if self.pool: self.pool.release()
             return
         self.tty.setoutput(self.tty.siftoutput(self.username, self.password, self.tty.prompt))
-        if self.pool: self.pool.release()
 
 class Mpinteractivecommand(Mpcommand):
 

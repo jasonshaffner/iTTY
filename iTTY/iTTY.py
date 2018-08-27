@@ -1,4 +1,4 @@
-import getpass, telnetlib, time, re, paramiko
+import getpass, telnetlib, time, asyncio, re, paramiko
 paramiko.util.log_to_file('/dev/null')
 
 class iTTY:
@@ -18,6 +18,12 @@ class iTTY:
         self.login()
 
     def __exit__(self, *args):
+        self.logout()
+
+    async def __aenter__(self):
+        await self.async_login()
+
+    async def __aexit__(self, *args):
         self.logout()
 
     #Sets which host to login and run commands
@@ -121,6 +127,18 @@ class iTTY:
         if not self.verifyloginparameters(): return
         if self.securelogin() or self.unsecurelogin(): return self.os
 
+    async def async_login(self, **kwargs):
+        if kwargs:
+            self.host = kwargs.get('host', None)
+            self.username = kwargs.get('username', None)
+            self.password = kwargs.get('password', None)
+        if not self.verifyloginparameters(): return
+        try:
+            if await self.async_securelogin() or self.unsecurelogin():
+                return self.os
+        except:
+            return None
+
     #Attempts to login to devices via SSH, returns OS type if successful, if not returns 0
     def securelogin(self, **kwargs):
         if kwargs:
@@ -134,6 +152,23 @@ class iTTY:
             self.session.connect(self.host.strip('\n'), username=self.username, password=self.password, look_for_keys=False, allow_agent=False)
             self.shell = self.session.invoke_shell()
             time.sleep(3)  #Allow time to log in and strip MOTD
+            self.prompt = self.shell.recv(1000).decode().split('\n')[-1].strip()
+            self.setos(self.prompt)
+            return self.os
+        except: return
+
+    async def async_securelogin(self, **kwargs):
+        if kwargs:
+            self.host = kwargs.get('host', None)
+            self.username = kwargs.get('username', None)
+            self.password = kwargs.get('password', None)
+        if not self.verifyloginparameters(): return
+        try:
+            self.session = paramiko.SSHClient() # Create instance of SSHClient object
+            self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            self.session.connect(self.host.strip('\n'), username=self.username, password=self.password, look_for_keys=False, allow_agent=False)
+            self.shell = self.session.invoke_shell()
+            await asyncio.sleep(3)  #Allow time to log in and strip MOTD
             self.prompt = self.shell.recv(1000).decode().split('\n')[-1].strip()
             self.setos(self.prompt)
             return self.os
@@ -161,9 +196,34 @@ class iTTY:
             return self.os
         except: return
 
+    async def async_unsecurelogin(self, **kwargs):
+        if kwargs:
+            self.host = kwargs.get('host', None)
+            self.username = kwargs.get('username', None)
+            self.password = kwargs.get('password', None)
+        if not self.verifyloginparameters(): return
+        if type(self.password) != bytes: self.password = self.password.encode()
+        try:
+            loginregex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
+            promptregex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
+            self.session = telnetlib.Telnet(self.host.strip('\n').encode(),23,3)
+            self.session.expect([loginregex, ] ,5)
+            self.session.write(self.username.encode() + b'\r')
+            self.session.read_until(b'assword')
+            self.session.write(self.password + b'\r')
+            software, match, previous_text = self.session.expect([promptregex,], 7)
+            self.prompt = previous_text.split(b'\n')[-1].strip().decode()
+            self.setos(self.prompt)
+            return self.os
+        except: return
+
     def runcommands(self, command_delay, commandheader=0, done=False):
         if self.shell: return self.runseccommands(command_delay, commandheader=commandheader, done=done)
         elif self.session: return self.rununseccommands(command_delay, commandheader=commandheader, done=done)
+
+    async def async_runcommands(self, command_delay, commandheader=0, done=False):
+        if self.shell: return await self.async_runseccommands(command_delay, commandheader=commandheader, done=done)
+        elif self.session: return await self.async_rununseccommands(command_delay, commandheader=commandheader, done=done)
 
     #Runs commands when logged in via SSH, returns output
     def runseccommands(self, command_delay, commandheader=0, done=False):
@@ -176,12 +236,33 @@ class iTTY:
         if done: self.logout()
         return self.getoutput()
 
+    async def async_runseccommands(self, command_delay, commandheader=0, done=False):
+        for command in self.getcommands():
+            self.shell.send(command.strip() + '\r')
+            await asyncio.sleep(command_delay)
+            if commandheader:
+                self.addtooutput(['\n' + _underline(command), ])
+            self.addtooutput(self.shell.recv(500000).decode().split('\n')[1:])
+        if done: self.logout()
+        return self.getoutput()
+
     #Runs commands when logged in via Telnet, returns output
     def rununseccommands(self, command_delay, commandheader=0, done=False):
         for command in self.commands:
             self.session.write((command.strip() + '\r').encode())
             n, m, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
             time.sleep(command_delay)
+            if commandheader:
+                self.addtooutput(['\n' + _underline(command), ])
+            self.addtooutput(output.decode().split('\n')[1:])
+        if done: self.logout()
+        return self.getoutput()
+
+    async def async_rununseccommands(self, command_delay, commandheader=0, done=False):
+        for command in self.commands:
+            self.session.write((command.strip() + '\r').encode())
+            n, m, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+            await asyncio.sleep(command_delay)
             if commandheader:
                 self.addtooutput(['\n' + _underline(command), ])
             self.addtooutput(output.decode().split('\n')[1:])
