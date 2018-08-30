@@ -1,4 +1,4 @@
-#!/home/jasonshaffner/dev3/anacalypsis/env/bin/python3
+#!/usr/local/bin/python3
 
 import getpass, sys
 from threading import Semaphore
@@ -60,7 +60,7 @@ for host in hostnames:
 for t in threads:
     t.join()
     try:
-        report.append(['\n\n' + StringUtils.pad(t.host, 15, padchar="*") + '\n', ] + t.tty.getoutput())
+        report.append(['\n\n' + StringUtils.pad(t.host, 15, padchar="*") + '\n', ] + t.tty.get_output())
     except:
         print("No data available for " + t.host.strip()    )
 hostnames.close()

@@ -1,4 +1,4 @@
-#!/home/jasonshaffner/dev3/anacalypsis/env/bin/python3
+#!/usr/local/bin/python3
 
 import getpass, sys, threading, re
 from iTTY.mpcommandthread import Mpcommand
@@ -34,7 +34,7 @@ for t in threads:
     address = ''
     linklocal = re.compile(' FE80', re.I)
         try:
-        output = t.tty.getoutput()
+        output = t.tty.get_output()
         for line in output:
             if not re.match(r'\s', line): interface = line.split()[0].strip()
             elif re.search(linklocal, line): continue

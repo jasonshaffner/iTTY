@@ -8,12 +8,12 @@ from netaddr import IPSet
 
 tty = iTTY()
 if len(sys.argv) < 5:
-        tty.setlogin()
-        tty.sethost(input("Device: "))
+        tty.set_login()
+        tty.set_host(input("Device: "))
     prefix = input("Prefix to look up: ")
 else:
-        tty.setlogin(username=sys.argv[1],password=sys.argv[2])
-        tty.sethost(sys.argv[3].split('.', 1)[0])
+        tty.set_login(username=sys.argv[1],password=sys.argv[2])
+        tty.set_host(sys.argv[3].split('.', 1)[0])
         prefix = sys.argv[4]
 octet = prefix.split('.')[0]
 command_delay = 20
@@ -21,9 +21,9 @@ alu = ["environment no more", "show router route-table longer " + prefix + " | m
 xr = ["terminal len 0", "show route longer-prefixes " + prefix + " | begin " + octet + "."+ "\n"]
 junos = ["set cli screen-length 0", "show route range " + prefix + ' | match "^[1-9]"']
 if tty.login():
-    if tty.os == 1: tty.setcommands(alu)
-    elif tty.os == 2: tty.setcommands(xr)
-    elif tty.os == 4: tty.setcommands(junos)
+    if tty.os == 1: tty.set_commands(alu)
+    elif tty.os == 2: tty.set_commands(xr)
+    elif tty.os == 4: tty.set_commands(junos)
     else:
         print("OS is not supported at this time")
         exit()
