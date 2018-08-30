@@ -7,8 +7,8 @@ from iTTY.command import Command, Command_parser
 from stringutils import StringUtils
 
 tty = iTTY()
-tty.setlogin()
-tty.sethost(input("Hostname: ").split('.', 1)[0]) 
+tty.set_login()
+tty.set_host(input("Hostname: ").split('.', 1)[0]) 
 print('')
 print('  Syntax  |    ALU    |     XR    |   IOS   |  Junos  |')
 print('          |-----------|-----------|---------|---------|')
@@ -26,7 +26,7 @@ else:
     exit()
 regex = '\d/'
 if tty.os == 1:
-    tty.setcommands(['environment no more', 'show port | match expression "[0-9] *Up"',])
+    tty.set_commands(['environment no more', 'show port | match expression "[0-9] *Up"',])
     if not card: tty.commands[1] += ' | match expression ^[0-9]'
     elif re.search('\|', card):
         tty.commands[1] += ' | match expression "^[' + card1 + '|' + card2 + ']/"'
@@ -34,16 +34,16 @@ if tty.os == 1:
     lightcommand = Command(['show port optical '], regex=regex, insertionpoints=[0], commanddelay=1)
 
 elif tty.os == 2:
-    tty.setcommands(['terminal length 0', 'show ip interface br | ex Shutdown',])
+    tty.set_commands(['terminal length 0', 'show ip interface br | ex Shutdown',])
     if not card: pass
     elif re.search('\|', card):
         tty.commands[1] += ' | utility egrep "E' + card1 + '|E' + card2 + '"'
     else: tty.commands[1] += ' | inc E' + card + '/'
-    lightcommand = Command(['show controllers ', ' phy | utility egrep -e "[TR]x [Pp]"'], 
+    lightcommand = Command(['show controllers ', ' phy | utility egrep -e "[TR]x [Pp]"'],
                    regex=regex, insertionpoints=[0], commanddelay=3)
-        
+
 elif tty.os == 3:
-    tty.setcommands(['terminal length 0', 'show ip interface br',])
+    tty.set_commands(['terminal length 0', 'show ip interface br',])
     if not card: tty.commands[1] = commands[1] + ' | ex admin'
     if re.search('\|', card):
         tty.commands[1] += ' | inc ' + card1 + '[0-9] .*up|' + card2 + '[0-9] .*up'
@@ -52,14 +52,14 @@ elif tty.os == 3:
     lightcommand = Command(['show interfaces ', ' transceiver | in [0-9]'], regex=regex, insertionpoints=[0], commanddelay=1)
 
 elif tty.os == 4:
-        tty.setcommands(['set cli screen-length 0', 'show interfaces terse | except down | except \. | match "ge-|xe-"'])
+        tty.set_commands(['set cli screen-length 0', 'show interfaces terse | except down | except \. | match "ge-|xe-"'])
     if not card: pass
     elif re.search('\|', card):
         tty.commands[1] += ' | match "' + card1 + '|' + card2 + '/"'
     else:
         tty.commands[1] += ' | match ' + card + '/'
-    lightcommand = Command(['show interfaces diagnostics optics ', ' | match dBm | except thre'], 
-        regex=regex, insertionpoints=[0], commanddelay=1) 
+    lightcommand = Command(['show interfaces diagnostics optics ', ' | match dBm | except thre'],
+        regex=regex, insertionpoints=[0], commanddelay=1)
 else:
     print("OS is not supported at this time")
     exit()
@@ -70,8 +70,8 @@ output = tty.siftoutput(tty.prompt)
 commands = Command_parser.generate_commands(lightcommand, output)
 command_delay = lightcommand.commanddelay
 for command in commands:
-    tty.setcommands([command])
-    tty.clearoutput()
+    tty.set_commands([command])
+    tty.clear_output()
     tty.runcommands(command_delay)
     levels = tty.siftoutput(tty.prompt)
     if tty.os == 1: #ALU

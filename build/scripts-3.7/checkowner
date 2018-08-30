@@ -1,4 +1,4 @@
-#!/home/jasonshaffner/dev3/anacalypsis/env/bin/python3
+#!/usr/local/bin/python3
 
 import getpass, sys
 from threading import Semaphore
@@ -32,7 +32,7 @@ report = [['Hostname', 'Owner'], ]
 for t in threads: 
     t.join()
     try:
-        report.append([t.host.strip(), t.tty.getoutput()[-1].split()[-1].strip('"').strip(';').strip()])
+        report.append([t.host.strip(), t.tty.get_output()[-1].split()[-1].strip('"').strip(';').strip()])
     except:
         print("No data available for " + t.host.strip())
 hostnames.close()

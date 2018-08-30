@@ -32,7 +32,7 @@ report = [['Hostname', 'Platform', 'Model', 'Version'],]
 for t in threads: 
     t.join()
 #    try:
-    output = t.tty.getoutput()
+    output = t.tty.get_output()
     if t.tty.os == 1: #ALU
         platform = 'Alcatel TiMOS'
         model = output[0].split('ALCATEL')[1].split('Copyright')[0].strip()

@@ -1,66 +1,57 @@
 from threading import Thread
 from .iTTY import iTTY
-from .command import Command_parser
 
-#Subclass of Thread, used for concurrent logins across multiple devices
 class Mpcommand(Thread):
-    def __init__(self, username, password, host, commanddelay, **kwargs):
+    """
+    Subclass of Thread, used for concurrent logins across multiple devices
+    """
+
+
+    def __init__(self, username, password, host, command_delay, **kwargs):
+        """
+        Factory
+        """
         Thread.__init__(self)
         self.username = username
         self.password = password
         self.host = host
-        self.commanddelay = commanddelay
-        self.alucommands = kwargs.get('alucommands', None)
-        self.asacommands = kwargs.get('asacommands', None)
-        self.ioscommands = kwargs.get('ioscommands', None)
-        self.junoscommands = kwargs.get('junoscommands', None)
-        self.xrcommands = kwargs.get('xrcommands', None)
-        self.commandheader = kwargs.get('commandheader', 1)
+        self.command_delay = command_delay
+        self.alu_commands = kwargs.get('alu_commands', None)
+        self.asa_commands = kwargs.get('asa_commands', None)
+        self.ios_commands = kwargs.get('ios_commands', None)
+        self.junos_commands = kwargs.get('junos_commands', None)
+        self.xr_commands = kwargs.get('xr_commands', None)
+        self.command_header = kwargs.get('_command_header', 1)
         self.pool = kwargs.get('pool', None)
         self.tty = iTTY(username=username, password=password, host=host)
 
-    async def run(self):
-        if self.pool: self.pool.acquire()
+    def run(self):
+        """
+        Starts thread, overrided Thread.run()
+        """
+        if self.pool:
+            self.pool.acquire()
         try:
-            async with self.tty:
-                if self.tty.os == 1:self.tty.setcommands(self.alucommands)
-                elif self.tty.os == 2:self.tty.setcommands(self.xrcommands)
-                elif self.tty.os == 3:self.tty.setcommands(self.ioscommands)
-                elif self.tty.os == 4:self.tty.setcommands(self.junoscommands)
-                elif self.tty.os == 5:self.tty.setcommands(self.asacommands)
+            with self.tty:
+                if self.tty.os == 1:
+                    self.tty.set_commands(self.alu_commands)
+                elif self.tty.os == 2:
+                    self.tty.set_commands(self.xr_commands)
+                elif self.tty.os == 3:
+                    self.tty.set_commands(self.ios_commands)
+                elif self.tty.os == 4:
+                    self.tty.set_commands(self.junos_commands)
+                elif self.tty.os == 5:
+                    self.tty.set_commands(self.asa_commands)
                 else:
                     print("Could not log in to: " + self.tty.host)
                     return
-                output = await self.tty.async_runcommands(self.commanddelay, commandheader=self.commandheader)
+                output = self.tty.runcommands(self.command_delay, command_header=self.command_header)
         except:
             print("Could not log in to: " + self.tty.host)
-            if self.pool: self.pool.release()
+            if self.pool:
+                self.pool.release()
             return
-        self.tty.setoutput(self.tty.siftoutput(self.username, self.password, self.tty.prompt))
-
-class Mpinteractivecommand(Mpcommand):
-
-    def run(self):
-        if self.pool: self.pool.acquire()
-        if self.tty.login():
-            if self.tty.os == 1: commands = self.alucommands
-            elif self.tty.os == 2: commands = self.xrcommands
-            elif self.tty.os == 3: commands = self.ioscommands
-            elif self.tty.os == 4: commands = self.junoscommands
-            elif self.tty.os == 5: commands = self.asacommands
-            else: return
-            self.tty.setcommands(commands[0])
-            output = self.tty.runcommands(self.commanddelay, commandheader=self.commandheader)
-            for command in commands[1]:
-                if command.commanddelay: self.commanddelay = command.commanddelay
-                self.tty.setcommands(Command_parser.generate_commands(command, output))
-                output = self.tty.runcommands(self.commanddelay, commandheader=self.commandheader)
-        else:
-            print("Could not log in to " + self.host.strip())
-            self.tty.logout()
-            if self.pool: self.pool.release()
-            return
-        output = self.tty.getoutput()
-        self.tty.setoutput(self.tty.siftoutput(self.username, self.password, self.tty.prompt))
-        self.tty.logout()
-        if self.pool: self.pool.release()
+        self.tty.set_output(self.tty.siftoutput(self.username, self.password, self.tty.prompt))
+        if self.pool:
+            self.pool.release()
