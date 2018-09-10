@@ -219,7 +219,7 @@ class iTTY:
             self.password = kwargs.get('password', None)
         if not self.verifyloginparameters():
             return
-        if self.secure_login() or self.unsecurelogin():
+        if self.secure_login() or self.unsecure_login():
             return self.os
 
 
@@ -231,7 +231,7 @@ class iTTY:
         if not self.verifyloginparameters():
             return
         try:
-            if await self.async_secure_login() or self.unsecurelogin():
+            if await self.async_secure_login() or await self.async_unsecure_login():
                 return self.os
         except:
             return None
@@ -249,7 +249,7 @@ class iTTY:
             return
         try:
             self.session = paramiko.SSHClient() #Create instance of SSHClient object
-            self.session.set__missing_host_key_policy(paramiko.AutoAddPolicy())
+            self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             self.session.connect(self.host.strip('\n'), username=self.username, password=self.password, look_for_keys=False, allow_agent=False)
             self.shell = self.session.invoke_shell()
             time.sleep(3)  #Allow time to log in and strip MOTD
@@ -269,7 +269,7 @@ class iTTY:
             return
         try:
             self.session = paramiko.SSHClient() #Create instance of SSHClient object
-            self.session.set__missing_host_key_policy(paramiko.AutoAddPolicy())
+            self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             self.session.connect(self.host.strip('\n'), username=self.username, password=self.password, look_for_keys=False, allow_agent=False)
             self.shell = self.session.invoke_shell()
             await asyncio.sleep(3)  #Allow time to log in and strip MOTD
