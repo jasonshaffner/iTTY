@@ -4,9 +4,9 @@ import re
 class Command(object):
     def __init__(self, body, **kwargs):
         self.body = body
-        self.insertionpoints = kwargs.get('insertionpoints', None)
+        self.insertion_points = kwargs.get('insertion_points', None)
         self.regex = kwargs.get('regex', None)
-        self.commanddelay = kwargs.get('commanddelay', None)
+        self.command_delay = kwargs.get('command_delay', None)
 
 class Command_parser():
     @staticmethod
@@ -23,15 +23,15 @@ class Command_parser():
 
     @staticmethod
     def process_command(command, line=""):
-        if not command.insertionpoints:
+        if not command.insertion_points:
             built = ''
             for piece in command.body:
                 built += piece
             return built
         i = 1
-        newcommand = command.body[:]
-        for point in command.insertionpoints:
+        new_command = command.body[:]
+        for point in command.insertion_points:
             insertion = i * 2 - 1
-            newcommand.insert(insertion, line.split()[point])
-        newCommand = Command(newcommand)
+            new_command.insert(insertion, line.split()[point])
+        newCommand = Command(new_command)
         return Command_parser.process_command(newCommand)

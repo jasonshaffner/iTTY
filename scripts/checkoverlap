@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
+
 #Currently supports IOS-XR, Alcatel TiMOS and Junos
 #This script will compare routing tables from two routers and print(overlapping space)
 
-import getpass, sys
+import getpass
+import sys
 from iTTY import iTTY
 from iTTY.mpcommandthread import Mpcommand
 from netaddr import IPSet
@@ -10,15 +12,16 @@ from netaddr import IPSet
 if len(sys.argv) < 5:
     username = input("Username: ")
     password = getpass.getpass()
-        host1 = input("Device 1: ")
+    host1 = input("Device 1: ")
     host2 = input("Device 2: ")
     prefix = input("Prefix to look up: ")
 else:
-        username = sys.argv[1]
+    username = sys.argv[1]
     password = sys.argv[2]
-        host1 = sys.argv[3].split('.', 1)[0]
+    host1 = sys.argv[3].split('.', 1)[0]
     host2 = sys.argv[4].split('.', 1)[0]
-        prefix = sys.argv[5]
+    prefix = sys.argv[5]
+
 octet = prefix.split('.')[0]
 command_delay = 20
 alu = ["environment no more", "show router route-table longer " + prefix + " | match expression ^[1-9]"]
@@ -28,14 +31,14 @@ hosts = [host1, host2]
 threads = []
 for host in hosts:
     thread = Mpcommand(username, password, host, command_delay, \
-                junoscommands=junos, xrcommands=xr, alucommands=alu, commandheader=0)
+                junoscommands=junos, xrcommands=xr, alucommands=alu, command_header=0)
         threads.append(thread)
         thread.start()
 routetable = []
 for t in threads:
-        t.join()
+    t.join()
     routes = set()
-    for line in t.tty.siftoutput(t.tty.prompt):
+    for line in t.tty.sift_output(t.tty.prompt):
         if line[:1] and not line[:1].isspace():
             ipaddr = line.split('/')[0].split()[-1].strip()
             cidr = line.split('/')[1].split()[0].strip()

@@ -14,8 +14,9 @@ else:
     username = sys.argv[1]
     password = sys.argv[2]
     devicelist = sys.argv[3]
+
 hostnames = open(devicelist, 'r')
-commanddelay = 1
+command_delay = 1
 xr = ['terminal length 0', 'show version brief | utility egrep "Software,|processor"']
 ios = ['terminal length 0', 'show version | in processor|Software,']
 alu = ['environment no more', 'show version']
@@ -24,12 +25,12 @@ junos = ['set cli screen-length 0', 'show version']
 threads = []
 pool = Semaphore(1000)
 for host in hostnames:
-    thread = Mpcommand(username, password, host, commanddelay, pool=pool, \
-        junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, commandheader=0)
+    thread = Mpcommand(username, password, host, command_delay, pool=pool, \
+        junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, command_header=0)
     threads.append(thread)
     thread.start()
 report = [['Hostname', 'Platform', 'Model', 'Version'],]
-for t in threads: 
+for t in threads:
     t.join()
 #    try:
     output = t.tty.get_output()
@@ -47,7 +48,7 @@ for t in threads:
         version = output[0].split('Version')[1].split()[0].strip(',')
     elif t.tty.os == 4: #JUNOS
         platform = 'Juniper JUNOS'
-        for l in output: 
+        for l in output:
             if l.startswith('Model'): model = l.split()[1]
             if re.search('OS Software', l): version = l.split()[-1][1:-1]
     elif t.tty.os == 5: #ASA

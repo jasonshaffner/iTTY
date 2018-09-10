@@ -71,7 +71,7 @@ class iTTY:
         self.host = host
 
 
-    def get__host(self):
+    def get_host(self):
         """
         Returns host (if none set, default is None)
         """
@@ -94,7 +94,7 @@ class iTTY:
             self.password = getpass.getpass()
 
 
-    def get__username(self):
+    def get_username(self):
         """
         Returns username (if none set_, default is None)
         """
@@ -106,7 +106,7 @@ class iTTY:
         self.password = None
 
 
-    def verifyloginparameters(self):
+    def verify_login_parameters(self):
         """
         Verifies that all necessary login parameters are set_, returns 0 if one is missing
         """
@@ -169,7 +169,7 @@ class iTTY:
         self.commands = list(open(file, 'r'))
 
 
-    def addcommand(self, command):
+    def add_command(self, command):
         """
         Takes a single command as arg, appends command to list of commands
         """
@@ -194,7 +194,7 @@ class iTTY:
         self.output = output
 
 
-    def addtooutput(self, output):
+    def add_to_output(self, output):
         """
         Adds to output of commands run
         """
@@ -217,7 +217,7 @@ class iTTY:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
-        if not self.verifyloginparameters():
+        if not self.verify_login_parameters():
             return
         if self.secure_login() or self.unsecure_login():
             return self.os
@@ -228,7 +228,7 @@ class iTTY:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
-        if not self.verifyloginparameters():
+        if not self.verify_login_parameters():
             return
         try:
             if await self.async_secure_login() or await self.async_unsecure_login():
@@ -245,7 +245,7 @@ class iTTY:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
-        if not self.verifyloginparameters():
+        if not self.verify_login_parameters():
             return
         try:
             self.session = paramiko.SSHClient() #Create instance of SSHClient object
@@ -265,7 +265,7 @@ class iTTY:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
-        if not self.verifyloginparameters():
+        if not self.verify_login_parameters():
             return
         try:
             self.session = paramiko.SSHClient() #Create instance of SSHClient object
@@ -288,19 +288,19 @@ class iTTY:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
-        if not self.verifyloginparameters():
+        if not self.verify_login_parameters():
             return
         if type(self.password) != bytes:
             self.password = self.password.encode()
         try:
-            loginregex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
-            promptregex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
+            login_regex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
+            prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
             self.session = telnetlib.Telnet(self.host.strip('\n').encode(),23,3)
-            self.session.expect([loginregex, ] ,5)
+            self.session.expect([login_regex, ] ,5)
             self.session.write(self.username.encode() + b'\r')
             self.session.read_until(b'assword')
             self.session.write(self.password + b'\r')
-            software, match, previous_text = self.session.expect([promptregex,], 7)
+            _, _, previous_text = self.session.expect([prompt_regex,], 7)
             self.prompt = previous_text.split(b'\n')[-1].strip().decode()
             self.set_os(self.prompt)
             return self.os
@@ -313,19 +313,19 @@ class iTTY:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
-        if not self.verifyloginparameters():
+        if not self.verify_login_parameters():
             return
         if type(self.password) != bytes:
             self.password = self.password.encode()
+        login_regex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
+        prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
         try:
-            loginregex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
-            promptregex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
             self.session = telnetlib.Telnet(self.host.strip('\n').encode(),23,3)
-            self.session.expect([loginregex, ] ,5)
+            self.session.expect([login_regex, ] ,5)
             self.session.write(self.username.encode() + b'\r')
             self.session.read_until(b'assword')
             self.session.write(self.password + b'\r')
-            software, match, previous_text = self.session.expect([promptregex,], 7)
+            _, _, previous_text = self.session.expect([prompt_regex,], 7)
             self.prompt = previous_text.split(b'\n')[-1].strip().decode()
             self.set_os(self.prompt)
             return self.os
@@ -333,71 +333,91 @@ class iTTY:
             return
 
 
-    def run_commands(self, command_delay, commandheader=0, done=False):
+    def run_commands(self, command_delay, command_header=0, done=False):
         if self.shell:
-            return self.run_sec_commands(command_delay, commandheader=commandheader, done=done)
+            return self.run_sec_commands(command_delay, command_header=command_header, done=done)
         elif self.session:
-            return self.run_unsec_commands(command_delay, commandheader=commandheader, done=done)
+            return self.run_unsec_commands(command_delay, command_header=command_header, done=done)
 
 
-    async def async_run_commands(self, command_delay, commandheader=0, done=False):
+    async def async_run_commands(self, command_delay, command_header=0, done=False):
         if self.shell:
-            return await self.async_run_sec_commands(command_delay, commandheader=commandheader, done=done)
+            return await self.async_run_sec_commands(command_delay, command_header=command_header, done=done)
         elif self.session:
-            return await self.async_run_unsec_commands(command_delay, commandheader=commandheader, done=done)
+            return await self.async_run_unsec_commands(command_delay, command_header=command_header, done=done)
 
 
-    def run_sec_commands(self, command_delay, commandheader=0, done=False):
+    def run_sec_commands(self, command_delay, command_header=0, done=False):
         """
         Runs commands when logged in via SSH, returns output
         """
         for command in self.get_commands():
+            if not self.shell.get_transport().is_active():
+                self.secure_login()
             self.shell.send(command.strip() + '\r')
             time.sleep(command_delay)
-            if commandheader:
-                self.addtooutput(['\n' + _underline(command), ])
-            self.addtooutput(self.shell.recv(500000).decode().split('\n')[1:])
+            if command_header:
+                self.add_to_output(['\n' + _underline(command), ])
+            self.add_to_output(self.shell.recv(500000).decode().split('\n')[1:])
         if done:
             self.logout()
         return self.get_output()
 
 
-    async def async_run_sec_commands(self, command_delay, commandheader=0, done=False):
+    async def async_run_sec_commands(self, command_delay, command_header=0, done=False):
         for command in self.get_commands():
+            if not self.shell.get_transport().is_active():
+                await self.async_secure_login()
             self.shell.send(command.strip() + '\r')
             await asyncio.sleep(command_delay)
-            if commandheader:
-                self.addtooutput(['\n' + _underline(command), ])
-            self.addtooutput(self.shell.recv(500000).decode().split('\n')[1:])
+            if command_header:
+                self.add_to_output(['\n' + _underline(command), ])
+            self.add_to_output(self.shell.recv(500000).decode().split('\n')[1:])
         if done:
             self.logout()
         return self.get_output()
 
 
-    def run_unsec_commands(self, command_delay, commandheader=0, done=False):
+    def run_unsec_commands(self, command_delay, command_header=0, done=False):
         """
         Runs commands when logged in via Telnet, returns output
         """
         for command in self.commands:
             self.session.write((command.strip() + '\r').encode())
-            n, m, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+            try:
+                _, _, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+            except EOFError:
+                self.unsecure_login()
+                self.session.write((command.strip() + '\r').encode())
+                try:
+                    _, _, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+                except Exception:
+                    return
             time.sleep(command_delay)
-            if commandheader:
-                self.addtooutput(['\n' + _underline(command), ])
-            self.addtooutput(output.decode().split('\n')[1:])
+            if command_header:
+                self.add_to_output(['\n' + _underline(command), ])
+            self.add_to_output(output.decode().split('\n')[1:])
         if done:
             self.logout()
         return self.get_output()
 
 
-    async def async_run_unsec_commands(self, command_delay, commandheader=0, done=False):
+    async def async_run_unsec_commands(self, command_delay, command_header=0, done=False):
         for command in self.commands:
             self.session.write((command.strip() + '\r').encode())
-            n, m, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+            try:
+                _, _, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+            except EOFError:
+                await self.async_unsecure_login()
+                self.session.write((command.strip() + '\r').encode())
+                try:
+                    _, _, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+                except Exception:
+                    return
             await asyncio.sleep(command_delay)
-            if commandheader:
-                self.addtooutput(['\n' + _underline(command), ])
-            self.addtooutput(output.decode().split('\n')[1:])
+            if command_header:
+                self.add_to_output(['\n' + _underline(command), ])
+            self.add_to_output(output.decode().split('\n')[1:])
         if done:
             self.logout()
         return self.get_output()
@@ -411,22 +431,22 @@ class iTTY:
         return
 
 
-    def siftoutput(self, *siftout):
-        dontprint = ['enable', 'Password:', 'terminal length', 'screen-length', 'Screen length', \
+    def sift_output(self, *sift_out):
+        dont_print = ['enable', 'Password:', 'terminal length', 'screen-length', 'Screen length', \
             'terminal pager', 'environment no more', '{master', 'Building config', \
-            'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',] + list(siftout)
+            'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',] + list(sift_out)
         output= []
         for entry in self.output:
             for line in entry:
-                if not line.strip() or any(str(n) in line for n in dontprint):
+                if not line.strip() or any(str(n) in line for n in dont_print):
                     continue
                 output.append(line)
         return output
 
 
-def _underline(input, linechar="-"):
-    return input.strip() + '\n' + _makeline(len(input.strip()), linechar)
+def _underline(input, line_char="-"):
+    return input.strip() + '\n' + _make_line(len(input.strip()), line_char)
 
 
-def _makeline(count, linechar="-"):
-    return linechar * int(count)
+def _make_line(count, line_char="-"):
+    return line_char * int(count)
