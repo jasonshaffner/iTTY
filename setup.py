@@ -16,6 +16,7 @@ setup(
 		'scripts/checkversion',
 		'scripts/checkowner',
 		'scripts/ipv6intbrief',
+        'scripts/verify_login',
     ],
     classifiers=[
         "Development Status :: 4 - Beta",

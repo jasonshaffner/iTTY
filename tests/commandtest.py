@@ -2,9 +2,9 @@ from iTTY import iTTY
 from format import Format
 from authenticity import Authenticity
 
-usernamesAndPassword = Authenticity.getUsernamesAndPassword()
+usernamesAndPassword = Authenticity.get_usernames_and_passwords()
 username = usernamesAndPassword['twc_user']
-password = usernamesAndPassword['password']
+password = usernamesAndPassword['twc_password']
 
 tty = iTTY(username=username, password=password, host='hstqtxl301r.texas.rr.com')
 
