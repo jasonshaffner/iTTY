@@ -30,7 +30,7 @@ if tty.login():
 else:
     print("Couldn't log in.")
     exit()
-tty.runcommands(command_delay)
+tty.run_commands(command_delay)
 routetable = []
 for line in tty.siftoutput(tty.prompt):
     if line[:1] and not line[:1].isspace():

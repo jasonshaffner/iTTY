@@ -62,7 +62,7 @@ for t in threads:
     try:
         report.append(['\n\n' + StringUtils.pad(t.host, 15, padchar="*") + '\n', ] + t.tty.get_output())
     except:
-        print("No data available for " + t.host.strip()    )
+        print("No data available for " + t.host.strip())
 hostnames.close()
 report = sorted(report, key=lambda hostname: hostname[0])
 for y in report:

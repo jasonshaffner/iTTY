@@ -13,9 +13,10 @@ else:
     username = sys.argv[1]
     password = sys.argv[2]
     devicelist = sys.argv[3]
+
 hostnames = open(devicelist, 'r')
 threadcount = 1000
-commanddelay = 3
+command_delay = 3
 junos = ['show configuration snmp contact', ]
 ios = ['show snmp contact']
 xr = ['show run | in contact', ]
@@ -24,12 +25,12 @@ alu = ['admin display-config | match contact']
 pool = Semaphore(threadcount)
 threads = []
 for host in hostnames:
-    thread = Mpcommand(username, password, host, commanddelay, pool=pool, \
-        junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, commandheader=0)
+    thread = Mpcommand(username, password, host, command_delay, pool=pool, \
+        junoscommands=junos, ioscommands=ios, xrcommands=xr, alucommands=alu, asacommands=asa, command_header=0)
     threads.append(thread)
     thread.start()
 report = [['Hostname', 'Owner'], ]
-for t in threads: 
+for t in threads:
     t.join()
     try:
         report.append([t.host.strip(), t.tty.get_output()[-1].split()[-1].strip('"').strip(';').strip()])

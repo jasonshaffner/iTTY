@@ -46,12 +46,12 @@ class Mpcommand(Thread):
                 else:
                     print("Could not log in to: " + self.tty.host)
                     return
-                output = self.tty.runcommands(self.command_delay, command_header=self.command_header)
+                output = self.tty.run_commands(self.command_delay, command_header=self.command_header)
         except:
             print("Could not log in to: " + self.tty.host)
             if self.pool:
                 self.pool.release()
             return
-        self.tty.set_output(self.tty.siftoutput(self.username, self.password, self.tty.prompt))
+        self.tty.set_output(self.tty.sift_output(self.username, self.password, self.tty.prompt))
         if self.pool:
             self.pool.release()
