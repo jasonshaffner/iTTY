@@ -28,6 +28,7 @@ class iTTY:
         self.host = kwargs.get('host', None)
         self.username = kwargs.get('username', None)
         self.password = kwargs.get('password', None)
+        self.timeout = kwargs.get('timeout', 5)
         self.os = None
         self.session = None
         self.shell = None
@@ -96,7 +97,7 @@ class iTTY:
 
     def get_username(self):
         """
-        Returns username (if none set_, default is None)
+        Returns username (if none set, default is None)
         """
         return self.username
 
@@ -108,7 +109,7 @@ class iTTY:
 
     def verify_login_parameters(self):
         """
-        Verifies that all necessary login parameters are set_, returns 0 if one is missing
+        Verifies that all necessary login parameters are set, returns 0 if one is missing
         """
         flag = 1
         if not self.username:
@@ -250,7 +251,12 @@ class iTTY:
         try:
             self.session = paramiko.SSHClient() #Create instance of SSHClient object
             self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            self.session.connect(self.host.strip('\n'), username=self.username, password=self.password, look_for_keys=False, allow_agent=False)
+            self.session.connect(self.host.strip('\n'),\
+                                    username=self.username,\
+                                    password=self.password,\
+                                    look_for_keys=False,\
+                                    allow_agent=False,\
+                                    timeout=self.timeout)
             self.shell = self.session.invoke_shell()
             time.sleep(3)  #Allow time to log in and strip MOTD
             self.prompt = self.shell.recv(1000).decode().split('\n')[-1].strip()
@@ -270,7 +276,12 @@ class iTTY:
         try:
             self.session = paramiko.SSHClient() #Create instance of SSHClient object
             self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            self.session.connect(self.host.strip('\n'), username=self.username, password=self.password, look_for_keys=False, allow_agent=False)
+            self.session.connect(self.host.strip('\n'),\
+                                    username=self.username,\
+                                    password=self.password,\
+                                    look_for_keys=False,\
+                                    allow_agent=False,\
+                                    timeout=self.timeout)
             self.shell = self.session.invoke_shell()
             await asyncio.sleep(3)  #Allow time to log in and strip MOTD
             self.prompt = self.shell.recv(1000).decode().split('\n')[-1].strip()
@@ -295,8 +306,8 @@ class iTTY:
         try:
             login_regex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
             prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
-            self.session = telnetlib.Telnet(self.host.strip('\n').encode(),23,3)
-            self.session.expect([login_regex, ] ,5)
+            self.session = telnetlib.Telnet(self.host.strip('\n').encode(), 23, self.timeout)
+            self.session.expect([login_regex, ], 5)
             self.session.write(self.username.encode() + b'\r')
             self.session.read_until(b'assword')
             self.session.write(self.password + b'\r')
@@ -320,8 +331,8 @@ class iTTY:
         login_regex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
         prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
         try:
-            self.session = telnetlib.Telnet(self.host.strip('\n').encode(),23,3)
-            self.session.expect([login_regex, ] ,5)
+            self.session = telnetlib.Telnet(self.host.strip('\n').encode(), 23, self.timeout)
+            self.session.expect([login_regex, ], 5)
             self.session.write(self.username.encode() + b'\r')
             self.session.read_until(b'assword')
             self.session.write(self.password + b'\r')
@@ -352,8 +363,12 @@ class iTTY:
         Runs commands when logged in via SSH, returns output
         """
         for command in self.get_commands():
-            if not self.shell.get_transport().is_active():
+            reattempts = 0
+            while not self.shell.get_transport().is_active():
+                reattempts += 1
                 self.secure_login()
+                if reattempts > 2 and not self.shell.get_transport().is_active():
+                    return
             self.shell.send(command.strip() + '\r')
             time.sleep(command_delay)
             if command_header:
@@ -366,8 +381,12 @@ class iTTY:
 
     async def async_run_sec_commands(self, command_delay, command_header=0, done=False):
         for command in self.get_commands():
-            if not self.shell.get_transport().is_active():
+            reattempts = 0
+            while not self.shell.get_transport().is_active():
+                reattempts += 1
                 await self.async_secure_login()
+                if reattempts > 2 and not self.shell.get_transport().is_active():
+                    return
             self.shell.send(command.strip() + '\r')
             await asyncio.sleep(command_delay)
             if command_header:
