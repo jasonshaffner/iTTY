@@ -7,6 +7,7 @@ import telnetlib
 import time
 import asyncio
 import re
+from functools import partial
 import paramiko
 
 paramiko.util.log_to_file('/dev/null')
@@ -265,25 +266,27 @@ class iTTY:
         except:
             return
 
-
-    async def async_secure_login(self, **kwargs):
+    @asyncio.coroutine
+    def async_secure_login(self, **kwargs):
         if kwargs:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
+        loop = asyncio.get_event_loop()
         if not self.verify_login_parameters():
             return
         try:
             self.session = paramiko.SSHClient() #Create instance of SSHClient object
             self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            self.session.connect(self.host.strip('\n'),\
+            _ = yield from loop.run_in_executor(None, partial(self.session.connect,\
+                                    self.host.strip('\n'),\
                                     username=self.username,\
                                     password=self.password,\
                                     look_for_keys=False,\
                                     allow_agent=False,\
-                                    timeout=self.timeout)
-            self.shell = self.session.invoke_shell()
-            await asyncio.sleep(3)  #Allow time to log in and strip MOTD
+                                    timeout=self.timeout))
+            self.shell = yield from loop.run_in_executor(None, self.session.invoke_shell)
+            time.sleep(3)  #Allow time to log in and strip MOTD
             self.prompt = self.shell.recv(1000).decode().split('\n')[-1].strip()
             self.set_os(self.prompt)
             return self.os
@@ -319,11 +322,13 @@ class iTTY:
             return
 
 
-    async def async_unsecure_login(self, **kwargs):
+    @asyncio.coroutine
+    def async_unsecure_login(self, **kwargs):
         if kwargs:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
+        loop = asyncio.get_event_loop()
         if not self.verify_login_parameters():
             return
         if type(self.password) != bytes:
@@ -331,12 +336,12 @@ class iTTY:
         login_regex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
         prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
         try:
-            self.session = telnetlib.Telnet(self.host.strip('\n').encode(), 23, self.timeout)
-            self.session.expect([login_regex, ], 5)
+            self.session = yield from loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
+            _ = yield from loop.run_in_executor(None, partial(self.session.expect, [login_regex, ], 5))
             self.session.write(self.username.encode() + b'\r')
-            self.session.read_until(b'assword')
+            _ = yield from loop.run_in_executor(None, partial(self.session.read_until, b'assword'))
             self.session.write(self.password + b'\r')
-            _, _, previous_text = self.session.expect([prompt_regex,], 7)
+            _, _, previous_text = yield from loop.run_in_executor(None, partial(self.session.expect, [prompt_regex,], 7))
             self.prompt = previous_text.split(b'\n')[-1].strip().decode()
             self.set_os(self.prompt)
             return self.os
@@ -377,7 +382,6 @@ class iTTY:
         if done:
             self.logout()
         return self.get_output()
-
 
     async def async_run_sec_commands(self, command_delay, command_header=0, done=False):
         for command in self.get_commands():
@@ -420,20 +424,21 @@ class iTTY:
             self.logout()
         return self.get_output()
 
-
-    async def async_run_unsec_commands(self, command_delay, command_header=0, done=False):
+    @asyncio.coroutine
+    def async_run_unsec_commands(self, command_delay, command_header=0, done=False):
+        loop = asyncio.get_event_loop()
         for command in self.commands:
             self.session.write((command.strip() + '\r').encode())
             try:
-                _, _, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+                _, _, output = yield from loop.run_in_executor(None, partial(self.session.expect, [re.compile(self.prompt.encode()), ], command_delay))
             except EOFError:
-                await self.async_unsecure_login()
+                _ = yield from self.async_unsecure_login()
                 self.session.write((command.strip() + '\r').encode())
                 try:
-                    _, _, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+                    _, _, output = yield from loop.run_in_executor(None, partial(self.session.expect, [re.compile(self.prompt.encode()), ], command_delay))
                 except Exception:
                     return
-            await asyncio.sleep(command_delay)
+            #time.sleep(command_delay)
             if command_header:
                 self.add_to_output(['\n' + _underline(command), ])
             self.add_to_output(output.decode().split('\n')[1:])
