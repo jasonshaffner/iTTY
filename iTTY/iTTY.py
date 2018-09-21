@@ -135,7 +135,7 @@ class iTTY:
             self.os = 2  #XR
         elif re.search('.*#', str(prompt)):
             self.os = 3    #IOS
-        elif re.search(self.username + '@.*>', str(prompt)):
+        elif re.search(''.join((self.username, '@.*>')), str(prompt)):
             self.os = 4  #JUNOS
         elif re.search('.*>', str(prompt)):
             self.os = 5  #ASA
@@ -143,6 +143,8 @@ class iTTY:
                 self.prompt = "".join(self.prompt.strip()[0:-1], '#')
             elif self.session:
                 self.prompt = "".join(self.prompt.strip()[0:-1], b'#')
+        elif re.search(''.join(('(', self.username, ')')), str(prompt)):
+            self.os = 6 #Load balancer
         return self.os
 
 
@@ -266,32 +268,43 @@ class iTTY:
         except:
             return
 
-    @asyncio.coroutine
-    def async_secure_login(self, **kwargs):
+    async def async_secure_login(self, **kwargs):
         if kwargs:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
-        loop = asyncio.get_event_loop()
         if not self.verify_login_parameters():
             return
         try:
             self.session = paramiko.SSHClient() #Create instance of SSHClient object
             self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            _ = yield from loop.run_in_executor(None, partial(self.session.connect,\
-                                    self.host.strip('\n'),\
-                                    username=self.username,\
-                                    password=self.password,\
-                                    look_for_keys=False,\
-                                    allow_agent=False,\
-                                    timeout=self.timeout))
-            self.shell = yield from loop.run_in_executor(None, self.session.invoke_shell)
-            time.sleep(3)  #Allow time to log in and strip MOTD
-            self.prompt = self.shell.recv(1000).decode().split('\n')[-1].strip()
+            self.shell = await self.async_connect()
+            await asyncio.sleep(3)  #Allow time to log in and strip MOTD
+            self.prompt = await self.async_get_prompt()
             self.set_os(self.prompt)
             return self.os
-        except:
+        except Exception:
             return
+
+    @asyncio.coroutine
+    def async_connect(self):
+        loop = asyncio.get_event_loop()
+        _ = yield from loop.run_in_executor(None, partial(self.session.connect,\
+                                self.host.strip('\n'),\
+                                username=self.username,\
+                                password=self.password,\
+                                look_for_keys=False,\
+                                allow_agent=False,\
+                                timeout=self.timeout))
+        shell = yield from loop.run_in_executor(None, self.session.invoke_shell)
+        return shell
+
+
+    @asyncio.coroutine
+    def async_get_prompt(self):
+        loop = asyncio.get_event_loop()
+        raw_prompt = yield from loop.run_in_executor(None, self.shell.recv(10000))
+        return raw_prompt.decode().split('\n')[-1].strip()
 
 
     def unsecure_login(self, **kwargs):
