@@ -323,11 +323,15 @@ class iTTY:
             login_regex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
             prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
             self.session = telnetlib.Telnet(self.host.strip('\n').encode(), 23, self.timeout)
-            self.session.expect([login_regex, ], 5)
+            _, match, _ = self.session.expect([login_regex, ], timeout=self.timeout)
+            if not match:
+                return
             self.session.write(self.username.encode() + b'\r')
-            self.session.read_until(b'assword')
+            _, match, _ = self.session.expect([b'assword'], timeout=self.timeout)
+            if not match:
+                return
             self.session.write(self.password + b'\r')
-            _, _, previous_text = self.session.expect([prompt_regex,], 7)
+            _, _, previous_text = self.session.expect([prompt_regex,], timeout=self.timeout)
             self.prompt = previous_text.split(b'\n')[-1].strip().decode()
             self.set_os(self.prompt)
             return self.os
@@ -350,11 +354,15 @@ class iTTY:
         prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
         try:
             self.session = yield from loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
-            _ = yield from loop.run_in_executor(None, partial(self.session.expect, [login_regex, ], 5))
+            _, match, _ = yield from loop.run_in_executor(None, partial(self.session.expect, [login_regex, ], timeout=self.timeout))
+            if not match:
+                return
             self.session.write(self.username.encode() + b'\r')
-            _ = yield from loop.run_in_executor(None, partial(self.session.read_until, b'assword'))
+            _, match, _ = yield from loop.run_in_executor(None, partial(self.session.expect, [b'assword'], timeout=self.timeout))
+            if not match:
+                return
             self.session.write(self.password + b'\r')
-            _, _, previous_text = yield from loop.run_in_executor(None, partial(self.session.expect, [prompt_regex,], 5))
+            _, _, previous_text = yield from loop.run_in_executor(None, partial(self.session.expect, [prompt_regex,], timeout=self.timeout))
             self.prompt = previous_text.split(b'\n')[-1].strip().decode()
             self.set_os(self.prompt)
             return self.os
