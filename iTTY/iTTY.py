@@ -303,7 +303,7 @@ class iTTY:
     @asyncio.coroutine
     def async_get_prompt(self):
         loop = asyncio.get_event_loop()
-        raw_prompt = yield from loop.run_in_executor(None, self.shell.recv(10000))
+        raw_prompt = yield from loop.run_in_executor(None, partial(self.shell.recv, 10000))
         return raw_prompt.decode().split('\n')[-1].strip()
 
 
@@ -354,7 +354,7 @@ class iTTY:
             self.session.write(self.username.encode() + b'\r')
             _ = yield from loop.run_in_executor(None, partial(self.session.read_until, b'assword'))
             self.session.write(self.password + b'\r')
-            _, _, previous_text = yield from loop.run_in_executor(None, partial(self.session.expect, [prompt_regex,], 7))
+            _, _, previous_text = yield from loop.run_in_executor(None, partial(self.session.expect, [prompt_regex,], 5))
             self.prompt = previous_text.split(b'\n')[-1].strip().decode()
             self.set_os(self.prompt)
             return self.os
@@ -376,7 +376,7 @@ class iTTY:
             return await self.async_run_unsec_commands(command_delay, command_header=command_header, done=done)
 
 
-    def run_sec_commands(self, command_delay, command_header=0, done=False):
+    def run_sec_commands(self, command_delay=1, command_header=0, done=False):
         """
         Runs commands when logged in via SSH, returns output
         """
@@ -396,7 +396,7 @@ class iTTY:
             self.logout()
         return self.get_output()
 
-    async def async_run_sec_commands(self, command_delay, command_header=0, done=False):
+    async def async_run_sec_commands(self, command_delay=1, command_header=0, done=False):
         for command in self.get_commands():
             reattempts = 0
             while not self.shell.get_transport().is_active():
@@ -414,7 +414,7 @@ class iTTY:
         return self.get_output()
 
 
-    def run_unsec_commands(self, command_delay, command_header=0, done=False):
+    def run_unsec_commands(self, command_delay=1, command_header=0, done=False):
         """
         Runs commands when logged in via Telnet, returns output
         """
@@ -438,7 +438,7 @@ class iTTY:
         return self.get_output()
 
     @asyncio.coroutine
-    def async_run_unsec_commands(self, command_delay, command_header=0, done=False):
+    def async_run_unsec_commands(self, command_delay=1, command_header=0, done=False):
         loop = asyncio.get_event_loop()
         for command in self.commands:
             self.session.write((command.strip() + '\r').encode())
@@ -451,7 +451,6 @@ class iTTY:
                     _, _, output = yield from loop.run_in_executor(None, partial(self.session.expect, [re.compile(self.prompt.encode()), ], command_delay))
                 except Exception:
                     return
-            #time.sleep(command_delay)
             if command_header:
                 self.add_to_output(['\n' + _underline(command), ])
             self.add_to_output(output.decode().split('\n')[1:])
