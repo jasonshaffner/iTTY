@@ -140,7 +140,7 @@ class iTTY:
         elif re.search('CPU.*#', str(prompt)):
             self.os = 2  #XR
         elif re.search('.*#', str(prompt)) and not re.search('@', str(prompt)):
-            self.set_commands(['show version', 'q'])
+            self.set_commands(['show version', '.'])
             try:
                 output = self.run_commands(3)
             except:
@@ -156,7 +156,7 @@ class iTTY:
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
             self.os = 4  #JUNOS
         elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)):
-            self.set_commands(['show version', 'q'])
+            self.set_commands(['show version', '.'])
             try:
                 output = self.run_commands(3)
             except:
@@ -173,6 +173,8 @@ class iTTY:
                     self.prompt = "".join((self.prompt.strip()[0:-1], b'#'))
         elif re.search(''.join((self.username, '@\(')), str(prompt)):
             self.os = 6 #Big IP Load balancer
+        elif re.search('refresh \:', str(prompt)) or re.search('--:- / cli->', str(prompt)):
+            self.os = 9 #Avocent
         return self.os
 
     async def async_set_os(self, prompt):
@@ -184,7 +186,7 @@ class iTTY:
         elif re.search('CPU.*#', str(prompt)):
             self.os = 2  #XR
         elif re.search('.*#', str(prompt)) and not re.search('@', str(prompt)):
-            self.set_commands(['show version', 'q'])
+            self.set_commands(['show version', '.'])
             try:
                 output = await self.async_run_commands(3)
             except:
@@ -207,7 +209,7 @@ class iTTY:
                 return
             finally:
                 self.clear_output()
-            if re.search('Arista', str(self.get_output())):
+            if re.search('Arista', str(output)):
                 self.os = 7 #Arista
             else:
                 self.os = 5  #ASA
@@ -217,6 +219,8 @@ class iTTY:
                     self.prompt = "".join((self.prompt.strip()[0:-1], b'#'))
         elif re.search(''.join((self.username, '@\(')), str(prompt)):
             self.os = 6 #Big IP Load balancer
+        elif re.search('refresh \:', str(prompt)) or re.search('--:- / cli->', str(prompt)):
+            self.os = 9 #Avocent
         return self.os
 
 
@@ -331,10 +335,9 @@ class iTTY:
                                     look_for_keys=False,\
                                     allow_agent=False,\
                                     timeout=self.timeout)
-            if connection: print(connection)
             self.shell = self.session.invoke_shell()
-            time.sleep(3)  #Allow time to log in and strip MOTD
-            self.prompt = self.shell.recv(1000).decode().split('\n')[-1].strip().lstrip('*')
+            time.sleep(self.timeout)  #Allow time to log in and strip MOTD
+            self.prompt = self.shell.recv(10000).decode().split('\n')[-1].strip().lstrip('*')
             self.set_os(self.prompt)
             return self.os
         except:
@@ -350,7 +353,7 @@ class iTTY:
         self.session = paramiko.SSHClient() #Create instance of SSHClient object
         self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         await self.async_connect()
-        await asyncio.sleep(3)  #Allow time to log in and strip MOTD
+        await asyncio.sleep(self.timeout)  #Allow time to log in and strip MOTD
         self.prompt = await self.async_get_prompt()
         await self.async_set_os(self.prompt)
         return self.os
@@ -427,23 +430,19 @@ class iTTY:
         login_regex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
         prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
         try:
-            #self.session = yield from loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
-            #_, match, _ = yield from loop.run_in_executor(None, partial(self.session.expect, [login_regex, ], timeout=self.timeout))
-            await async_telnet_login()
-            match = await async_expect(self.timeout, login_regex)
+            await self.async_telnet_login()
+            match = await self.async_expect(self.timeout, login_regex)
             if not match:
                 self.session = None
                 return
             self.session.write(self.username.encode() + b'\r')
-            #_, match, _ = yield from loop.run_in_executor(None, partial(self.session.expect, [b'assword'], timeout=self.timeout))
-            match = await async_expect(self.timeout, 'assword')
+            match = await self.async_expect(self.timeout, 'assword')
             if not match:
                 self.session = None
                 return
             self.session.write(self.password + b'\r')
-            match = await async_expect(self.timeout, prompt_regex)
-            #_, _, previous_text = yield from loop.run_in_executor(None, partial(self.session.expect, [prompt_regex,], timeout=self.timeout))
-            self.prompt = previous_text.split(b'\n')[-1].strip().decode().lstrip('*')
+            match = await self.async_expect(self.timeout, prompt_regex)
+            self.prompt = match.split(b'\n')[-1].strip().decode().lstrip('*')
             await self.async_set_os(self.prompt)
             return self.os
         except Exception:
@@ -453,6 +452,7 @@ class iTTY:
 
     @asyncio.coroutine
     def async_telnet_login(self):
+        loop = asyncio.get_event_loop()
         self.session = yield from loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
 
     def run_commands(self, command_delay, command_header=0, done=False):
@@ -546,45 +546,30 @@ class iTTY:
 
 
     async def async_run_unsec_commands(self, command_delay=1, command_header=0, done=False):
-        if not self.session or not self.os:
-            try:
-                await self.async_unsecure_login()
-            except CouldNotConnectError:
-                return
         for command in self.commands:
-            ran = await self.async_run_unsec_command(command)
-            if ran:
-                output = await self.async_unsec_retrieve_output(command, command_delay)
-                if output:
-                    if command_header:
-                        self.add_to_output(['\n' + _underline(command), ])
-                    self.add_to_output(output.decode().split('\n')[1:])
+            output = await self.async_run_unsec_command(command, command_delay)
+            if output:
+                if command_header:
+                    self.add_to_output(['\n' + _underline(command), ])
+                self.add_to_output(output.decode().split('\n')[1:])
         if done:
             self.logout()
-        return self.get_output()
+        return self.output
 
-    async def async_run_unsec_command(self, command):
+    async def async_run_unsec_command(self, command, command_delay):
         try:
-            self.session.write((command.strip() + '\r').encode())
+            self.session.write(command.strip().encode() + b'\r')
+            await asyncio.sleep(command_delay)
+            output = await self.async_expect(command_delay, self.prompt)
         except BrokenPipeError:
-            try:
-                await self.async_unsecure_login()
-            except CouldNotConnectError:
-                return
-            try:
-                self.session.write((command.strip() + '\r').encode())
-            except BrokenPipeError:
-                return
-        return 1
+            return
 
-    async def async_unsec_retrieve_output(self, command, command_delay=1):
-        return await self.async_expect(command_delay)
 
     @asyncio.coroutine
     def async_expect(self, command_delay, expectation=None):
+        loop = asyncio.get_event_loop()
         if not expectation:
             expectation = re.compile(self.prompt.encode())
-        loop = asyncio.get_event_loop()
         if not isinstance(expectation, re.Pattern):
             expectation = re.compile(expectation.encode())
         try:
