@@ -7,6 +7,7 @@ import telnetlib
 import time
 import asyncio
 import re
+import socket
 from functools import partial
 import paramiko
 
@@ -394,7 +395,7 @@ class iTTY:
             self.password = kwargs.get('password', None)
         if not self.verify_login_parameters():
             return
-        if type(self.password) != bytes:
+        if not isinstance(self.password, bytes):
             self.password = self.password.encode()
         try:
             login_regex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
@@ -425,27 +426,31 @@ class iTTY:
         loop = asyncio.get_event_loop()
         if not self.verify_login_parameters():
             return
-        if type(self.password) != bytes:
+        if not isinstance(self.password, bytes):
             self.password = self.password.encode()
         login_regex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
         prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
         try:
             await self.async_telnet_login()
-            match = await self.async_expect(self.timeout, login_regex)
-            if not match:
+            if not self.session:
+                return
+            if not await self.async_expect(login_regex, self.timeout):
                 self.session = None
                 return
             self.session.write(self.username.encode() + b'\r')
-            match = await self.async_expect(self.timeout, 'assword')
-            if not match:
+            if not self.async_expect(b'assword', self.timeout):
                 self.session = None
                 return
             self.session.write(self.password + b'\r')
-            match = await self.async_expect(self.timeout, prompt_regex)
-            self.prompt = match.split(b'\n')[-1].strip().decode().lstrip('*')
+            match = await self.async_expect(prompt_regex, self.timeout)
+            if match:
+                self.prompt = match.split(b'\n')[-1].strip().decode().lstrip('*')
+            else:
+                raise CouldNotConnectError(self.host)
+                return
             await self.async_set_os(self.prompt)
             return self.os
-        except Exception:
+        except (ConnectionResetError, CouldNotConnectError):
             self.session = None
             raise CouldNotConnectError(self.host)
             return
@@ -453,7 +458,11 @@ class iTTY:
     @asyncio.coroutine
     def async_telnet_login(self):
         loop = asyncio.get_event_loop()
-        self.session = yield from loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
+        try:
+            self.session = yield from loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
+        except (ConnectionRefusedError, socket.timeout):
+            raise CouldNotConnectError(self.host)
+            return
 
     def run_commands(self, command_delay, command_header=0, done=False):
         if self.shell:
@@ -527,7 +536,7 @@ class iTTY:
             self.session.write((command.strip() + '\r').encode())
             try:
                 _, _, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
-            except EOFError:
+            except (EOFError, ConnectionResetError):
                 self.unsecure_login()
                 self.session.write((command.strip() + '\r').encode())
                 try:
@@ -560,25 +569,26 @@ class iTTY:
         try:
             self.session.write(command.strip().encode() + b'\r')
             await asyncio.sleep(command_delay)
-            output = await self.async_expect(command_delay, self.prompt)
-        except BrokenPipeError:
+            return await self.async_expect(command_delay=command_delay)
+        except (BrokenPipeError, ConnectionResetError):
             return
 
 
     @asyncio.coroutine
-    def async_expect(self, command_delay, expectation=None):
+    def async_expect(self, expectation=None, command_delay=1):
         loop = asyncio.get_event_loop()
         if not expectation:
             expectation = re.compile(self.prompt.encode())
         if not isinstance(expectation, re.Pattern):
-            expectation = re.compile(expectation.encode())
+            if not isinstance(expectation, bytes):
+                expectation = expectation.encode()
+            expectation = re.compile(expectation)
         try:
-            _, _, output = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], command_delay))
-        except EOFError:
+            _, match, output = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=command_delay))
+            if match:
+                return output
+        except (EOFError, ConnectionResetError):
             return
-        except Exception:
-            return
-        return output
 
     def logout(self):
         try:
