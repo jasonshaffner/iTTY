@@ -460,7 +460,7 @@ class iTTY:
         loop = asyncio.get_event_loop()
         try:
             self.session = yield from loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
-        except (ConnectionRefusedError, socket.timeout):
+        except (ConnectionRefusedError, OSError, socket.timeout):
             raise CouldNotConnectError(self.host)
             return
 
@@ -501,7 +501,7 @@ class iTTY:
         return self.get_output()
 
     async def async_run_sec_commands(self, command_delay=1, command_header=0, done=False):
-        for command in self.get_commands():
+        for command in self.commands:
             if not isinstance(command, bytes):
                 command = command.encode()
             try:
@@ -520,9 +520,10 @@ class iTTY:
             except OSError:
                 return
             await asyncio.sleep(command_delay)
-            if command_header:
-                self.add_to_output(['\n' + _underline(command), ])
-            self.add_to_output(self.shell.recv(500000).decode().split('\n')[1:])
+            if command.decode() != self.password.decode():
+                if command_header:
+                    self.add_to_output(['\n' + _underline(command.decode()), ])
+                self.add_to_output(self.shell.recv(500000).decode().split('\n')[1:])
         if done:
             self.logout()
         return self.get_output()
@@ -533,12 +534,14 @@ class iTTY:
         Runs commands when logged in via Telnet, returns output
         """
         for command in self.commands:
-            self.session.write((command.strip() + '\r').encode())
+            if not isinstance(command, bytes):
+                command = command.encode()
+            self.session.write((command.strip() + b'\r'))
             try:
                 _, _, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
             except (EOFError, ConnectionResetError):
                 self.unsecure_login()
-                self.session.write((command.strip() + '\r').encode())
+                self.session.write((command.strip() + b'\r'))
                 try:
                     _, _, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
                 except Exception:
@@ -546,9 +549,10 @@ class iTTY:
             except Exception:
                 return
             time.sleep(command_delay)
-            if command_header:
-                self.add_to_output(['\n' + _underline(command), ])
-            self.add_to_output(output.decode().split('\n')[1:])
+            if output and (str(command) != str(self.password) and str(command) != str(self.username)):
+                if command_header:
+                    self.add_to_output(['\n' + _underline(command.decode()), ])
+                self.add_to_output(output.decode().split('\n')[1:])
         if done:
             self.logout()
         return self.get_output()
@@ -557,7 +561,7 @@ class iTTY:
     async def async_run_unsec_commands(self, command_delay=1, command_header=0, done=False):
         for command in self.commands:
             output = await self.async_run_unsec_command(command, command_delay)
-            if output:
+            if output and (str(command) != str(self.password) and str(command) != str(self.username)):
                 if command_header:
                     self.add_to_output(['\n' + _underline(command), ])
                 self.add_to_output(output.decode().split('\n')[1:])
