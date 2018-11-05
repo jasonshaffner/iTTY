@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='iTTY',
-	version='0.4',
+	version='0.5',
 	description='Intelligent TTY Utilities for Network Administration',
 	author='Jason Shaffner, Patrick Lawless',
 	url='https://git.netops.charter.com/jasonshaffner/iTTY',
