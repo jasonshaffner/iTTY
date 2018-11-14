@@ -119,17 +119,9 @@ class iTTY:
         """
         Verifies that all necessary login parameters are set, returns 0 if one is missing
         """
-        flag = 1
-        if not self.username:
-            print("No username specified")
-            flag = 0
-        if not self.password:
-            print("No password specified")
-            flag = 0
-        if not self.host:
-            print("No host specified")
-            flag = 0
-        return flag
+        if not self.username or not self.password or not self.host:
+            raise LoginParametersNotSpecifiedError
+        return True
 
 
     def set_os(self, prompt):
@@ -629,4 +621,7 @@ def _make_line(count, line_char="-"):
     return line_char * int(count)
 
 class CouldNotConnectError(Exception):
+    pass
+
+class LoginParametersNotSpecifiedError(Exception):
     pass
