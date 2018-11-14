@@ -551,23 +551,20 @@ class iTTY:
 
 
     async def async_run_unsec_commands(self, command_delay=1, command_header=0, done=False):
-        command_output = []
         for command in self.commands:
             output = await self.async_run_unsec_command(command, command_delay)
             if output and (str(command) != str(self.password) and str(command) != str(self.username)):
                 if command_header:
-                    command_output.append([''.join(('\n', _underline(command))), ])
-                command_output.append(output.decode().split('\n')[1:])
+                    self.add_to_output([''.join(('\n', _underline(command))), ])
+                self.add_to_output(output.decode().split('\n')[1:])
         if done:
             self.logout()
-        self.add_to_output(command_output)
-        return command_output
+        return self.output
 
     async def async_run_unsec_command(self, command, command_delay):
         try:
             await self.async_expect(command_delay=command_delay)
             self.session.write(command.strip().encode() + b'\r')
-            await asyncio.sleep(command_delay)
             return await self.async_expect(command_delay=command_delay)
         except (BrokenPipeError, ConnectionResetError):
             return
