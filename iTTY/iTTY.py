@@ -30,7 +30,7 @@ class iTTY:
         self.host = kwargs.get('host', None)
         self.username = kwargs.get('username', None)
         self.password = kwargs.get('password', None)
-        self.timeout = kwargs.get('timeout', 5)
+        self.timeout = kwargs.get('timeout', 10)
         self.os = None
         self.session = None
         self.shell = None
