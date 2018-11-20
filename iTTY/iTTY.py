@@ -456,6 +456,12 @@ class iTTY:
             raise CouldNotConnectError(self.host)
             return
 
+    def telnet_or_ssh(self):
+        if isinstance(self.session, paramiko.SSHClient):
+            return 'SSH'
+        elif isinstance(self.session, telnetlib.Telnet):
+            return 'Telnet'
+
     def run_commands(self, command_delay, command_header=0, done=False):
         if self.shell:
             return self.run_sec_commands(command_delay, command_header=command_header, done=done)
