@@ -144,6 +144,8 @@ class iTTY:
                 self.os = 8 #A10
             elif re.search('Arista', str(output)):
                 self.os = 7
+            elif re.search('Invalid', str(output)):
+                self.os = 10 #Niagara
             else:
                 self.os = 3    #IOS
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
@@ -158,6 +160,8 @@ class iTTY:
                 self.clear_output()
             if re.search('Arista', str(output)):
                 self.os = 7 #Arista
+            elif re.search('A10', str(output)):
+                self.os = 8
             else:
                 self.os = 5  #ASA
                 if self.shell:
@@ -179,7 +183,7 @@ class iTTY:
         elif re.search('CPU.*#', str(prompt)):
             self.os = 2  #XR
         elif re.search('.*#', str(prompt)) and not re.search('@', str(prompt)):
-            self.set_commands(['show version', '.'])
+            self.set_commands(['show version', 'q'])
             try:
                 output = await self.async_run_commands(3)
             except:
@@ -190,6 +194,8 @@ class iTTY:
                 self.os = 8 #A10
             elif re.search('Arista', str(output)):
                 self.os = 7 #Arista
+            elif re.search('Invalid', str(output)):
+                self.os = 10 #Niagara
             else:
                 self.os = 3    #IOS
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
@@ -204,6 +210,8 @@ class iTTY:
                 self.clear_output()
             if re.search('Arista', str(output)):
                 self.os = 7 #Arista
+            elif re.search('A10', str(output)):
+                self.os = 8
             else:
                 self.os = 5  #ASA
                 if self.shell:
