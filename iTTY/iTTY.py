@@ -382,7 +382,7 @@ class iTTY:
     def async_get_prompt(self):
         loop = asyncio.get_event_loop()
         raw_prompt = yield from loop.run_in_executor(None, partial(self.shell.recv, 10000))
-        return raw_prompt.decode().split('\n')[-1].strip().lstrip('*')
+        return raw_prompt.decode().split('\n')[-1].split('*')[-1].strip().lstrip('*')
 
 
     def unsecure_login(self, **kwargs):
