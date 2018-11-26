@@ -150,7 +150,7 @@ class iTTY:
                 self.os = 3    #IOS
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
             self.os = 4  #JUNOS
-        elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)):
+        elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)) and not re.search('cli', str(prompt)):
             self.set_commands(['show version', '.'])
             try:
                 output = self.run_commands(3)
@@ -200,7 +200,7 @@ class iTTY:
                 self.os = 3    #IOS
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
             self.os = 4  #JUNOS
-        elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)):
+        elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)) and not re.search('cli', str(prompt)):
             self.set_commands(['show version', 'q'])
             try:
                 output = await self.async_run_commands(3)
