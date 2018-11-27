@@ -349,6 +349,8 @@ class iTTY:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
+        if not isinstance(self.password, bytes):
+            self.password = self.password.encode()
         if not self.verify_login_parameters():
             return
         self.session = paramiko.SSHClient() #Create instance of SSHClient object
@@ -526,7 +528,7 @@ class iTTY:
             except OSError:
                 return
             await asyncio.sleep(command_delay)
-            if command.decode() != self.password.decode():
+            if command != self.password:
                 if command_header:
                     self.add_to_output(['\n' + _underline(command.decode()), ])
                 self.add_to_output(self.shell.recv(500000).decode().split('\n')[1:])
@@ -613,7 +615,7 @@ class iTTY:
 
     def sift_output(self, *sift_out):
         dont_print = ['enable', 'Password:', 'terminal length', 'screen-length', 'Screen length', \
-            'terminal pager', 'environment no more', '{master', 'Building config', \
+            'terminal pager', 'environment no more', '{master', '{primary', '{secondary', 'Building config', \
             'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',] + list(sift_out)
         output= []
         for entry in self.output:

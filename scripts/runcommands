@@ -2,6 +2,7 @@
 
 import getpass
 import sys
+import re
 import asyncio
 import multiprocessing
 from functools import partial
@@ -10,19 +11,29 @@ from stringutils import StringUtils
 from iTTY import iTTY, CouldNotConnectError
 
 def parse_params():
-    if len(sys.argv) < 5:
+    username = ''
+    password = ''
+    device_list = []
+    greppable_output = False
+    if len(sys.argv) > 1:
+        for i, arg in enumerate(sys.argv):
+            if arg == '-u':
+                username = sys.argv[i+1]
+            elif arg == '-p':
+                password = sys.argv[i+1]
+            elif arg == '-d':
+                device_list = sys.argv[i+1]
+            elif arg == '-g':
+                greppable_output = True
+    if not username:
         username = input("Username: ")
+    if not password:
         password = getpass.getpass()
-        devicelist = input("Device list file: ")
-        configs = input("Are you making config changes? [y/n] ")
-    else:
-        username = sys.argv[1]
-        password = sys.argv[2]
-        devicelist = sys.argv[3]
-        configs = sys.argv[4]
-    if "y" in configs: command_delay = 2
-    else: command_delay = 10 #Seconds to wait for each command to finish
-    return (username, password, devicelist, command_delay)
+    if not device_list:
+        device_list = input("Device list file: ")
+    if not greppable_output:
+        greppable_output = True if re.match('y', input('Would you like greppable output? [y/n]'), flags=re.IGNORECASE) else False
+    return (username, password, device_list, greppable_output)
 
 def get_devices(devicelist):
     devices = [[]]
@@ -58,7 +69,6 @@ def gather_commands():
     try:
         with open('ASA', 'r') as f:
             asa = ['enable', PASSWORD, 'terminal pager 0'] + list(f)[:]
-            print(asa)
     except: pass
     f5 = []
     try:
@@ -81,32 +91,43 @@ def run_em(devices, report):
     loops = []
     loop = asyncio.new_event_loop()
     for device in devices:
-        print('DEVICE', device)
         task = loop.create_task(run_commands(device, report))
         loops.append(task)
     if loops:
-        print('WE GOTS LOOPS')
         loop.run_until_complete(asyncio.wait(loops))
 
 async def run_commands(device, report):
-    print('RUNNING COMMANDS ON', device)
     try:
         async with iTTY(host=device, username=USERNAME, password=PASSWORD, timeout=10) as tty:
-            if not COMMANDS[tty.os]:
-                print('No commands for this device-type', tty.os, device)
+            if tty.os and not COMMANDS[tty.os]:
+                print('No commands for this device-type:', OS[tty.os], 'host:', device)
                 return
             tty.set_commands(COMMANDS[tty.os])
-            output = await tty.async_run_commands(CONFIG_MODE, command_header=1)
+            output = await tty.async_run_commands(command_delay=10, command_header=1)
+            if not output:
+                print('No output from ', device)
+                return
     except CouldNotConnectError:
         print('Could not connect to', device)
         return
-    if output:
+    if GREP:
+        output = tty.sift_output(output, tty.prompt)
+        grep = []
+        for line in output:
+            if line:
+                if re.search("|".join(COMMANDS[tty.os]), str(line)):
+                    command = str(line).strip('\n-\ ')
+                else:
+                    grep.append(','.join((device, command, str(line).strip())))
+        report.append(grep)
+    else:
         report.append(('\n\n', StringUtils.pad(device, 10, '-'), '\n'.join(line for line in tty.sift_output(output, tty.prompt))))
 
 
 if __name__ == '__main__':
-    USERNAME, PASSWORD, DEVICELIST, CONFIG_MODE = parse_params()
-    if not all((USERNAME, PASSWORD, DEVICELIST, CONFIG_MODE)):
+    OS = dict({1: 'ALU', 2: 'XR', 3:'IOS', 4:'JUNOS', 5: 'ASA', 6: 'F5', 7: 'EOS', 8: 'A10', 9: 'Avocent', 10: 'Niagaga'})
+    USERNAME, PASSWORD, DEVICELIST, GREP = parse_params()
+    if not all((USERNAME, PASSWORD, DEVICELIST)):
         print('Need username, password, and devicelist to proceed')
         exit()
     CPUS = multiprocessing.cpu_count() * 8
@@ -114,11 +135,10 @@ if __name__ == '__main__':
     if not DEVICES:
         print('Could not generate device list')
         exit()
-    for line in DEVICES:
-        print(line)
     COMMANDS = gather_commands()
-    for command in COMMANDS:
-        print(command)
+    if not COMMANDS:
+        print('Could not gather commands to run')
+        exit()
     manager = multiprocessing.Manager()
     report = manager.list()
     with multiprocessing.Pool(processes=CPUS, maxtasksperchild=1) as pool:
