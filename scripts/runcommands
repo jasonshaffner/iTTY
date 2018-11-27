@@ -160,8 +160,7 @@ if __name__ == '__main__':
         for l in line:
             print(l)
     print('\n\n', '-' * 25, '\n\n')
-    print(f'Successfully ran commands on {DEV_COUNT - len(failed)} out of {DEV_COUNT} devices', '\n')
     print('Failed to run commands on the below devices:')
     for line in failed:
         print('\t', line)
-    print('\n', f"Runtime: {int((end - start)/60)} minutes and {int(end - start) % 60} seconds", '\n')
+    print('\n\n\n', f'Successfully ran commands on {DEV_COUNT - len(failed)} out of {DEV_COUNT} devices in {int((end - start)/60)} minutes and {int(end - start) % 60} seconds', '\n')
