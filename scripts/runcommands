@@ -5,6 +5,7 @@ import sys
 import re
 import asyncio
 import multiprocessing
+import time
 from functools import partial
 from multiprocessing import Manager
 from stringutils import StringUtils
@@ -42,7 +43,8 @@ def get_devices(devicelist):
             if index % CPUS >= len(devices):
                 devices.append([])
             devices[index % CPUS].append(host.strip())
-    return devices
+            dev_count = index
+    return devices, dev_count + 1
 
 def gather_commands():
     alu = []
@@ -87,28 +89,31 @@ def gather_commands():
     except: pass
     return ([], alu, xr, ios, junos, asa, f5, eos, a10)
 
-def run_em(devices, report):
+def run_em(devices, report, failed):
     loops = []
     loop = asyncio.new_event_loop()
     for device in devices:
-        task = loop.create_task(run_commands(device, report))
+        task = loop.create_task(run_commands(device, report, failed))
         loops.append(task)
     if loops:
         loop.run_until_complete(asyncio.wait(loops))
 
-async def run_commands(device, report):
+async def run_commands(device, report, failed):
     try:
         async with iTTY(host=device, username=USERNAME, password=PASSWORD, timeout=10) as tty:
             if tty.os and not COMMANDS[tty.os]:
                 print('No commands for this device-type:', OS[tty.os], 'host:', device)
+                failed.append(device)
                 return
             tty.set_commands(COMMANDS[tty.os])
             output = await tty.async_run_commands(command_delay=10, command_header=1)
             if not output:
                 print('No output from ', device)
+                failed.append(device)
                 return
     except CouldNotConnectError:
         print('Could not connect to', device)
+        failed.append(device)
         return
     if GREP:
         output = tty.sift_output(output, tty.prompt)
@@ -131,7 +136,7 @@ if __name__ == '__main__':
         print('Need username, password, and devicelist to proceed')
         exit()
     CPUS = multiprocessing.cpu_count() * 8
-    DEVICES = get_devices(DEVICELIST)
+    DEVICES, DEV_COUNT = get_devices(DEVICELIST)
     if not DEVICES:
         print('Could not generate device list')
         exit()
@@ -141,10 +146,19 @@ if __name__ == '__main__':
         exit()
     manager = multiprocessing.Manager()
     report = manager.list()
+    failed = manager.list()
+    start = time.time()
     with multiprocessing.Pool(processes=CPUS, maxtasksperchild=1) as pool:
-        pool.imap_unordered(partial(run_em, report=report), DEVICES)
+        pool.imap_unordered(partial(run_em, report=report, failed=failed), DEVICES)
         pool.close()
         pool.join()
+    end = time.time()
     for line in report:
         for l in line:
             print(l)
+    print('\n\n', '-' * 25, '\n\n')
+    print(f'Successfully ran commands on {DEV_COUNT - len(failed)} out of {DEV_COUNT} devices', '\n')
+    print('Failed to run commands on the below devices:')
+    for line in failed:
+        print('\t', line)
+    print('\n', f"Runtime: {int((end - start)/60)} minutes and {int(end - start) % 60} seconds", '\n')

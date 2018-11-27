@@ -452,7 +452,7 @@ class iTTY:
                 return
             await self.async_set_os(self.prompt)
             return self.os
-        except (ConnectionResetError, CouldNotConnectError):
+        except (ConnectionResetError, CouldNotConnectError, BrokenPipeError):
             self.session = None
             raise CouldNotConnectError(self.host)
             return
@@ -462,7 +462,7 @@ class iTTY:
         loop = asyncio.get_event_loop()
         try:
             self.session = yield from loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
-        except (ConnectionRefusedError, OSError, socket.timeout):
+        except (ConnectionRefusedError, OSError, socket.timeout, BrokenPipeError):
             raise CouldNotConnectError(self.host)
             return
 
