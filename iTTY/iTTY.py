@@ -503,7 +503,7 @@ class iTTY:
             time.sleep(command_delay)
             if command_header:
                 self.add_to_output(['\n' + _underline(command), ])
-            self.add_to_output(self.shell.recv(500000).encode('utf-8').strip().decode().split('\n')[1:])
+            self.add_to_output(self.shell.recv(500000).strip().decode().split('\n')[1:])
         if done:
             self.logout()
         return self.get_output()
@@ -531,7 +531,7 @@ class iTTY:
             if command != self.password:
                 if command_header:
                     self.add_to_output(['\n' + _underline(command.decode()), ])
-                self.add_to_output(self.shell.recv(500000).encode('utf-8').strip().decode().split('\n')[1:])
+                self.add_to_output(self.shell.recv(500000).strip().decode().split('\n')[1:])
         if done:
             self.logout()
         return self.get_output()
