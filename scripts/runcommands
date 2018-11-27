@@ -105,6 +105,9 @@ async def run_commands(device, report, failed):
                 print('No commands for this device-type:', OS[tty.os], 'host:', device)
                 failed.append(device)
                 return
+            if not tty.os:
+                print('NO OS', device)
+                return
             tty.set_commands(COMMANDS[tty.os])
             output = await tty.async_run_commands(command_delay=10, command_header=1)
             if not output:
