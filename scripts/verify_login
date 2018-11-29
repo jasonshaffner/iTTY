@@ -2,37 +2,102 @@
 
 import sys
 import getpass
+import time
+import resource
+import asyncio
 import multiprocessing
-from iTTY import iTTY
+from functools import partial
+from iTTY import iTTY, CouldNotConnectError
 
 """
 Attempts only to login to devices (first via ssh, then via telnet)
 Prints string determining whether and how it was able to login
 """
 
-def attempt_login(host):
+def parse_params():
+    username = ''
+    password = ''
+    device_list = []
+    if len(sys.argv) > 1:
+        for i, arg in enumerate(sys.argv):
+            if arg == '-u':
+                username = sys.argv[i+1]
+            elif arg == '-p':
+                password = sys.argv[i+1]
+            elif arg == '-d':
+                device_list = sys.argv[i+1]
+    if not username:
+        username = input("Username: ")
+    if not password:
+        password = getpass.getpass()
+    if not device_list:
+        device_list = input("Device list file: ")
+    return (username, password, device_list)
+
+async def attempt_login(host, failed, ssh, telnet):
+    host = host.strip()
     try:
-        host = host.strip()
-        tty = iTTY(host=host.strip(), username=username, password=password)
-        if tty.login():
+        async with iTTY(host=host.strip(), username=USERNAME, password=PASSWORD, timeout=10) as tty:
             if tty.shell:
                 print(f'{host} reachable via SSH')
+                ssh.value += 1
             elif tty.session:
                 print(f'{host} reachable via TELNET')
-            else:
-                print(f'{host} not reachable')
-    except:
+                telnet.value += 1
+    except CouldNotConnectError:
         print(f'{host} not reachable')
+        failed.value += 1
 
-if len(sys.argv) < 4:
-    username = input("Username: ")
-    password = getpass.getpass()
-    devicelist = input("Device list file: ")
-else:
-    username = sys.argv[1]
-    password = sys.argv[2]
-    devicelist = sys.argv[3]
 
-with open(devicelist, 'r') as hosts:
-    with multiprocessing.Pool(processes=multiprocessing.cpu_count() * 16) as pool:
-        pool.map(attempt_login, hosts)
+def get_devices(devicelist):
+    devices = [[]]
+    with open(devicelist, 'r') as hosts:
+        hostnames = list(hosts)
+        dev_count = len(hostnames)
+        print('DEV_COUNT', dev_count)
+        if dev_count > int(ULIMIT/CPUS):
+            group_count = int(dev_count/int(ULIMIT/CPUS))
+        else:
+            group_count = CPUS
+        print('GROUP_COUNT', group_count)
+        for index, host in enumerate(hostnames):
+            print(index, host, index % group_count)
+            if index % group_count >= len(devices):
+                devices.append([])
+            devices[index % group_count].append(host.strip())
+    print(devices)
+    return devices, dev_count
+
+def verify(devices, failed, ssh, telnet):
+    loops = []
+    loop = asyncio.new_event_loop()
+    for device in devices:
+        task = loop.create_task(attempt_login(device, failed, ssh, telnet))
+        loops.append(task)
+    if loops:
+        loop.run_until_complete(asyncio.wait(loops))
+
+if __name__ == '__main__':
+    USERNAME, PASSWORD, DEVICELIST = parse_params()
+    if not all((USERNAME, PASSWORD, DEVICELIST)):
+        print('Need username, password, and devicelist to proceed')
+        exit()
+    CPUS = multiprocessing.cpu_count()
+    ULIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[1] * 2
+    DEVICES, DEV_COUNT = get_devices(DEVICELIST)
+    if not DEVICES:
+        print('Could not generate device list')
+        exit()
+    manager = multiprocessing.Manager()
+    failed = manager.Value(int, 0)
+    ssh = manager.Value(int, 0)
+    telnet = manager.Value(int, 0)
+    start = time.time()
+    with multiprocessing.Pool(processes=CPUS, maxtasksperchild=1) as pool:
+        pool.imap_unordered(partial(verify, failed=failed, ssh=ssh, telnet=telnet), DEVICES)
+        pool.close()
+        pool.join()
+    end = time.time()
+    print('\n\n', '-' * 50, '\n\n')
+    print('\n\n\n', f'Successfully logged into {ssh.value + telnet.value} out of {DEV_COUNT} devices in {int((end - start)/60)} minutes and {int(end - start) % 60} seconds', '\n')
+    print('\n', f'{ssh.value} devices were reachable via SSH. {telnet.value} devices were reachable via Telnet.', '\n')
