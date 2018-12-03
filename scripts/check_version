@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
 
-import sys
 import getpass
-import time
+import sys
+import re
 import resource
 import asyncio
 import multiprocessing
+import time
 from functools import partial
-from iTTY import iTTY, CouldNotConnectError
-
-"""
-Attempts only to login to devices (first via ssh, then via telnet)
-Prints string determining whether and how it was able to login
-"""
+from multiprocessing import Manager
+from stringutils import StringUtils
+from iTTY import iTTY, Extractor, CouldNotConnectError
 
 def parse_params():
     username = ''
     password = ''
     device_list = []
+    greppable_output = False
     if len(sys.argv) > 1:
         for i, arg in enumerate(sys.argv):
             if arg == '-u':
@@ -34,20 +33,6 @@ def parse_params():
         device_list = input("Device list file: ")
     return (username, password, device_list)
 
-async def attempt_login(host, failed, ssh, telnet):
-    host = host.strip()
-    try:
-        async with iTTY(host=host.strip(), username=USERNAME, password=PASSWORD, timeout=10) as tty:
-            if tty.shell:
-                print(f'{host} reachable via SSH')
-                ssh.value += 1
-            elif tty.session:
-                print(f'{host} reachable via TELNET')
-                telnet.value += 1
-    except CouldNotConnectError:
-        print(f'{host} not reachable')
-        failed.value += 1
-
 def get_devices(devicelist):
     devices = [[]]
     with open(devicelist, 'r') as hosts:
@@ -63,14 +48,31 @@ def get_devices(devicelist):
             devices[index % group_count].append(host.strip())
     return devices, dev_count
 
-def verify(devices, failed, ssh, telnet):
+def compile_data(devices, report, failed):
     loops = []
     loop = asyncio.new_event_loop()
     for device in devices:
-        task = loop.create_task(attempt_login(device, failed, ssh, telnet))
+        task = loop.create_task(extract_data(device, report, failed))
         loops.append(task)
     if loops:
         loop.run_until_complete(asyncio.wait(loops))
+
+async def extract_data(device, report, failed):
+    make = '-'
+    model = '-'
+    version = '-'
+    try:
+        async with iTTY(host=device, username=USERNAME, password=PASSWORD, timeout=10) as tty:
+            make = await Extractor.extract_make(tty) or '-'
+            model = await Extractor.extract_model(tty) or '-'
+            version = await Extractor.extract_version(tty) or '-'
+    except CouldNotConnectError:
+        failed.append(device)
+        return
+    if make == '-' and model == '-' and version == '-':
+        failed.append(device)
+        return
+    report.append((device, make, model, version))
 
 if __name__ == '__main__':
     USERNAME, PASSWORD, DEVICELIST = parse_params()
@@ -84,15 +86,18 @@ if __name__ == '__main__':
         print('Could not generate device list')
         exit()
     manager = multiprocessing.Manager()
-    failed = manager.Value(int, 0)
-    ssh = manager.Value(int, 0)
-    telnet = manager.Value(int, 0)
+    report = manager.list()
+    report.append(('Host', 'Make', 'Model', 'Version'))
+    failed = manager.list()
     start = time.time()
     with multiprocessing.Pool(processes=CPUS, maxtasksperchild=1) as pool:
-        pool.imap_unordered(partial(verify, failed=failed, ssh=ssh, telnet=telnet), DEVICES)
+        pool.imap_unordered(partial(compile_data, report=report, failed=failed), DEVICES)
         pool.close()
         pool.join()
     end = time.time()
-    print('\n\n', '-' * 100, '\n\n')
-    print(f'Successfully logged into {ssh.value + telnet.value} out of {DEV_COUNT} devices in {int((end - start)/60)} minutes and {int(end - start) % 60} seconds')
-    print('\n', f'{ssh.value} devices were reachable via SSH. {telnet.value} devices were reachable via Telnet.', '\n')
+    print('\n\n', '-' * 50, '\n\n')
+    print(StringUtils.columnize(report, bars=1, width=5))
+    print('Failed to get version info from the below devices:')
+    for line in failed:
+        print('\t', line)
+    print('\n\n\n', f'Successfully gathered version info from {DEV_COUNT - len(failed)} out of {DEV_COUNT} devices in {int((end - start)/60)} minutes and {int(end - start) % 60} seconds', '\n')
