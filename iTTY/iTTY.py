@@ -43,7 +43,7 @@ class iTTY:
         """
         Support for "with" statements
         """
-        self.__init__(kwargs)
+        self.__init__
         self.login()
         return self
 
@@ -140,7 +140,7 @@ class iTTY:
                 return
             finally:
                 self.clear_output()
-            if re.search('A10', str(output)):
+            if re.search(' A10 ', str(output)):
                 self.os = 8 #A10
             elif re.search('Arista', str(output)):
                 self.os = 7
@@ -160,7 +160,7 @@ class iTTY:
                 self.clear_output()
             if re.search('Arista', str(output)):
                 self.os = 7 #Arista
-            elif re.search('A10', str(output)):
+            elif re.search(' A10 ', str(output)):
                 self.os = 8
             else:
                 self.os = 5  #ASA
@@ -190,7 +190,7 @@ class iTTY:
                 return
             finally:
                 self.clear_output()
-            if re.search('A10', str(output)):
+            if re.search(' A10 ', str(output)):
                 self.os = 8 #A10
             elif re.search('Arista', str(output)):
                 self.os = 7 #Arista
@@ -210,7 +210,7 @@ class iTTY:
                 self.clear_output()
             if re.search('Arista', str(output)):
                 self.os = 7 #Arista
-            elif re.search('A10', str(output)):
+            elif re.search(' A10 ', str(output)):
                 self.os = 8
             else:
                 self.os = 5  #ASA
@@ -606,7 +606,7 @@ class iTTY:
         try:
             if self.shell:
                 self.shell.close()
-            elif self.session:
+            if self.session:
                 self.session.close()
             return
         except EOFError:

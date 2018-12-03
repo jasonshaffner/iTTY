@@ -3,6 +3,7 @@
 import getpass
 import sys
 import re
+import resource
 import asyncio
 import multiprocessing
 import time
@@ -38,13 +39,18 @@ def parse_params():
 
 def get_devices(devicelist):
     devices = [[]]
-    with open(devicelist, 'r') as hostnames:
+    with open(devicelist, 'r') as hosts:
+        hostnames = list(hosts)
+        dev_count = len(hostnames)
+        if dev_count > int(ULIMIT/CPUS):
+            group_count = int(dev_count/int(ULIMIT/CPUS))
+        else:
+            group_count = CPUS
         for index, host in enumerate(hostnames):
-            if index % CPUS >= len(devices):
+            if index % group_count >= len(devices):
                 devices.append([])
-            devices[index % CPUS].append(host.strip())
-            dev_count = index
-    return devices, dev_count + 1
+            devices[index % group_count].append(host.strip())
+    return devices, dev_count
 
 def gather_commands():
     alu = []
@@ -138,7 +144,8 @@ if __name__ == '__main__':
     if not all((USERNAME, PASSWORD, DEVICELIST)):
         print('Need username, password, and devicelist to proceed')
         exit()
-    CPUS = multiprocessing.cpu_count() * 8
+    CPUS = multiprocessing.cpu_count()
+    ULIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[0] * 2
     DEVICES, DEV_COUNT = get_devices(DEVICELIST)
     if not DEVICES:
         print('Could not generate device list')
@@ -159,8 +166,8 @@ if __name__ == '__main__':
     for line in report:
         for l in line:
             print(l)
-    print('\n\n', '-' * 50, '\n\n')
+    print('\n\n', '-' * 100, '\n\n')
     print('Failed to run commands on the below devices:')
     for line in failed:
-        print('\t', line)
-    print('\n\n\n', f'Successfully ran commands on {DEV_COUNT - len(failed)} out of {DEV_COUNT} devices in {int((end - start)/60)} minutes and {int(end - start) % 60} seconds', '\n')
+        print('  ', line)
+    print('\n\n', f'Successfully ran commands on {DEV_COUNT - len(failed)} out of {DEV_COUNT} devices in {int((end - start)/60)} minutes and {int(end - start) % 60} seconds', '\n')
