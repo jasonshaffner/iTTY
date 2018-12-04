@@ -48,8 +48,6 @@ class iTTY:
         return self
 
 
-
-
     def __exit__(self, *args):
         """
         Support for "with" statements
@@ -299,9 +297,12 @@ class iTTY:
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
         if not self.verify_login_parameters():
+            raise LoginParametersNotSpecifiedError
             return
-        if self.secure_login() or self.unsecure_login():
-            return self.os
+        try:
+            return self.secure_login()
+        except CouldNotConnectError:
+            return self.unsecure_login()
 
 
     async def async_login(self, **kwargs):
@@ -342,7 +343,7 @@ class iTTY:
             self.set_os(self.prompt)
             return self.os
         except:
-            return
+            raise CouldNotConnectError(self.host)
 
     async def async_secure_login(self, **kwargs):
         if kwargs:
@@ -377,7 +378,6 @@ class iTTY:
             self.session = None
             self.shell = None
             raise CouldNotConnectError(self.host)
-            return
 
 
     @asyncio.coroutine
@@ -405,19 +405,23 @@ class iTTY:
             self.session = telnetlib.Telnet(self.host.strip('\n').encode(), 23, self.timeout)
             _, match, _ = self.session.expect([login_regex, ], timeout=self.timeout)
             if not match:
+                raise CouldNotConnectError(self.host)
                 return
             self.session.write(self.username.encode() + b'\r')
             _, match, _ = self.session.expect([b'assword'], timeout=self.timeout)
             if not match:
+                raise CouldNotConnectError(self.host)
                 return
             self.session.write(self.password + b'\r')
-            _, _, previous_text = self.session.expect([prompt_regex,], timeout=self.timeout)
+            _, match, previous_text = self.session.expect([prompt_regex,], timeout=self.timeout)
+            if not match:
+                raise CouldNotConnectError(self.host)
+                return
             self.prompt = previous_text.split(b'\n')[-1].strip().decode().lstrip('*')
             self.set_os(self.prompt)
             return self.os
-        except:
+        except (CouldNotConnectError, ConnectionResetError, BrokenPipeError):
             raise CouldNotConnectError(self.host)
-            return
 
 
     async def async_unsecure_login(self, **kwargs):
