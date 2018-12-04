@@ -551,7 +551,7 @@ async def extract_xr_syslog_server(tty):
         syslogs = set()
         for out in output:
             for line in out:
-                if not re.search('show', line) and re.match('logging', line):
+                if not re.search('show', line) and re.search('logging', line):
                     try:
                         syslogs.add(line.split()[1])
                     except IndexError:
