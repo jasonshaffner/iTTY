@@ -86,7 +86,7 @@ def gather_commands():
     eos = []
     try:
         with open('EOS', 'r') as f:
-            eos = list(f)[:]
+            eos = ['terminal length 0'] + list(f)[:]
     except: pass
     a10 = []
     try:
