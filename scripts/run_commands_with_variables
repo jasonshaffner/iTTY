@@ -11,7 +11,7 @@ import socket
 from functools import partial
 from multiprocessing import Manager
 from stringutils import StringUtils
-from iTTY import iTTY, CouldNotConnectError
+from iTTY import iTTY, Extractor, CouldNotConnectError
 from network_extractor import Network_Extractor
 
 def parse_params():
@@ -120,22 +120,49 @@ async def run_commands(device, report, failed):
             for command in COMMANDS[tty.os]:
                 if re.search('<.*>', command):
                     var = re.search('<.*>', command).group(0)
-                    if re.search('FQDN', var):
+                    if re.search('FQDN|MGMT_IP', var):
                         mgmt_ip = await Network_Extractor.async_extract_mgmt_ip(tty=tty)
-                        tty.clear_output()
-                        if mgmt_ip:
-                            dns_entry, _, _ = socket.gethostbyaddr(mgmt_ip.get('v4_address'))
-                        else:
+                        if not mgmt_ip:
                             print(f'Could not find mgmt_ip for {tty.host}')
+                            failed.append(device)
                             return
-                    if dns_entry:
-                        command = re.sub(var, dns_entry, command)
-                    else:
-                        print(f'Could not find fqdn for {tty.host}')
-                        return
-                    commands.append(command)
-                else:
-                    commands.append(command)
+                        if re.search('FQDN', var):
+                            dns_entry, _, _ = socket.gethostbyaddr(mgmt_ip.get('v4_address'))
+                            if dns_entry:
+                                command = re.sub(var, dns_entry, command)
+                            else:
+                                print(f'Could not find fqdn for {tty.host}')
+                                failed.append(device)
+                                return
+                        else:
+                            command = re.sub(var, mgmt_ip.get('v4_address'), command)
+                    elif re.search('HOSTNAME', var):
+                        hostname = await Extractor.extract_hostname(tty=tty)
+                        tty.clear_output()
+                        if hostname:
+                            command = re.sub(var, hostname, command)
+                        else:
+                            print(f'Could not find hostname for {tty.host}')
+                            failed.append(device)
+                            return
+                    elif re.search('CONTACT', var):
+                        contact = await Extractor.extract_contact(tty=tty)
+                        if contact:
+                            command = re.sub(var, contact, command)
+                        else:
+                            print(f'Could not find contact for {tty.host}')
+                            failed.append(device)
+                            return
+                    elif re.search('LOCATION', var):
+                        location = await Extractor.extract_location(tty=tty)
+                        if location:
+                            command = re.sub(var, location, command)
+                        else:
+                            print(f'Could not find location for {tty.host}')
+                            failed.append(device)
+                            return
+                    tty.clear_output()
+                commands.append(command)
             tty.set_commands(commands)
             output = await tty.async_run_commands(command_delay=10, command_header=1)
             if not tty.sift_output(output, tty.prompt, '-', commands):
