@@ -1,0 +1,195 @@
+#!/usr/bin/env python3
+
+import getpass
+import sys
+import re
+import resource
+import asyncio
+import multiprocessing
+import time
+import socket
+from functools import partial
+from multiprocessing import Manager
+from stringutils import StringUtils
+from iTTY import iTTY, CouldNotConnectError
+from network_extractor import Network_Extractor
+
+def parse_params():
+    username = ''
+    password = ''
+    device_list = []
+    greppable_output = False
+    if len(sys.argv) > 1:
+        for i, arg in enumerate(sys.argv):
+            if arg == '-u':
+                username = sys.argv[i+1]
+            elif arg == '-p':
+                password = sys.argv[i+1]
+            elif arg == '-d':
+                device_list = sys.argv[i+1]
+            elif arg == '-g':
+                greppable_output = True
+    if not username:
+        username = input("Username: ")
+    if not password:
+        password = getpass.getpass()
+    if not device_list:
+        device_list = input("Device list file: ")
+    if not greppable_output:
+        greppable_output = True if re.match('y', input('Would you like greppable output? [y/n]'), flags=re.IGNORECASE) else False
+    return (username, password, device_list, greppable_output)
+
+def get_devices(devicelist):
+    devices = [[]]
+    with open(devicelist, 'r') as hosts:
+        hostnames = list(hosts)
+        dev_count = len(hostnames)
+        if dev_count > int(ULIMIT/CPUS):
+            group_count = int(dev_count/int(ULIMIT/CPUS))
+        else:
+            group_count = CPUS
+        for index, host in enumerate(hostnames):
+            if index % group_count >= len(devices):
+                devices.append([])
+            devices[index % group_count].append(host.strip())
+    return devices, dev_count
+
+def gather_commands():
+    alu = []
+    try:
+        with open('ALU', 'r') as f:
+            alu = ['environment no more'] + list(f)[:]
+    except: pass
+    xr = []
+    try:
+        with open('XR', 'r') as f:
+            xr = ['terminal length 0'] + list(f)[:]
+    except: pass
+    ios = []
+    try:
+        with open('IOS', 'r') as f:
+            ios = ['terminal length 0'] + list(f)[:]
+    except: pass
+    junos = []
+    try:
+        with open('JUNOS', 'r') as f:
+            junos = ['set cli screen-length 0'] + list(f)[:]
+    except: pass
+    asa = []
+    try:
+        with open('ASA', 'r') as f:
+            asa = ['enable', PASSWORD, 'terminal pager 0'] + list(f)[:]
+    except: pass
+    f5 = []
+    try:
+        with open('F5', 'r') as f:
+            f5 = list(f)[:]
+    except: pass
+    eos = []
+    try:
+        with open('EOS', 'r') as f:
+            eos = ['terminal length 0'] + list(f)[:]
+    except: pass
+    a10 = []
+    try:
+        with open('A10', 'r') as f:
+            a10 = list(f)[:]
+    except: pass
+    return ([], alu, xr, ios, junos, asa, f5, eos, a10)
+
+def run_em(devices, report, failed):
+    loops = []
+    loop = asyncio.new_event_loop()
+    for device in devices:
+        task = loop.create_task(run_commands(device, report, failed))
+        loops.append(task)
+    if loops:
+        loop.run_until_complete(asyncio.wait(loops))
+
+async def run_commands(device, report, failed):
+    try:
+        async with iTTY(host=device, username=USERNAME, password=PASSWORD, timeout=10) as tty:
+            if tty.os and not COMMANDS[tty.os]:
+                print('No commands for this device-type:', OS[tty.os], 'host:', device)
+                failed.append(device)
+                return
+            if not tty.os:
+                print('NO OS', device)
+                return
+            commands = []
+            for command in COMMANDS[tty.os]:
+                if re.search('<.*>', command):
+                    var = re.search('<.*>', command).group(0)
+                    if re.search('FQDN', var):
+                        mgmt_ip = await Network_Extractor.async_extract_mgmt_ip(tty=tty)
+                        tty.clear_output()
+                        if mgmt_ip:
+                            dns_entry, _, _ = socket.gethostbyaddr(mgmt_ip.get('v4_address'))
+                        else:
+                            print(f'Could not find mgmt_ip for {tty.host}')
+                            return
+                    if dns_entry:
+                        command = re.sub(var, dns_entry, command)
+                    else:
+                        print(f'Could not find fqdn for {tty.host}')
+                        return
+                    commands.append(command)
+                else:
+                    commands.append(command)
+            tty.set_commands(commands)
+            output = await tty.async_run_commands(command_delay=10, command_header=1)
+            if not tty.sift_output(output, tty.prompt, '-', commands):
+                print('No output from ', device)
+                failed.append(device)
+                return
+    except CouldNotConnectError:
+        print('Could not connect to', device)
+        failed.append(device)
+        return
+    if GREP:
+        output = tty.sift_output(output, tty.prompt)
+        grep = []
+        for line in output:
+            if line:
+                if re.search("|".join(COMMANDS[tty.os]), str(line)):
+                    command = str(line).strip('\n-\ ')
+                else:
+                    grep.append(','.join((device, command, str(line).strip())))
+        report.append(grep)
+    else:
+        report.append(('\n\n', StringUtils.pad(device, 10, '-'), '\n'.join(line for line in tty.sift_output(output, tty.prompt))))
+
+
+if __name__ == '__main__':
+    OS = dict({1: 'ALU', 2: 'XR', 3:'IOS', 4:'JUNOS', 5: 'ASA', 6: 'F5', 7: 'EOS', 8: 'A10', 9: 'Avocent', 10: 'Niagaga'})
+    USERNAME, PASSWORD, DEVICELIST, GREP = parse_params()
+    if not all((USERNAME, PASSWORD, DEVICELIST)):
+        print('Need username, password, and devicelist to proceed')
+        exit()
+    CPUS = multiprocessing.cpu_count()
+    ULIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[0] * 2
+    DEVICES, DEV_COUNT = get_devices(DEVICELIST)
+    if not DEVICES:
+        print('Could not generate device list')
+        exit()
+    COMMANDS = gather_commands()
+    if not COMMANDS:
+        print('Could not gather commands to run')
+        exit()
+    manager = multiprocessing.Manager()
+    report = manager.list()
+    failed = manager.list()
+    start = time.time()
+    with multiprocessing.Pool(processes=CPUS, maxtasksperchild=1) as pool:
+        pool.imap_unordered(partial(run_em, report=report, failed=failed), DEVICES)
+        pool.close()
+        pool.join()
+    end = time.time()
+    for line in report:
+        for l in line:
+            print(l)
+    print('\n\n', '-' * 100, '\n\n')
+    print('Failed to run commands on the below devices:')
+    for line in failed:
+        print('  ', line)
+    print('\n\n', f'Successfully ran commands on {DEV_COUNT - len(failed)} out of {DEV_COUNT} devices in {int((end - start)/60)} minutes and {int(end - start) % 60} seconds', '\n')

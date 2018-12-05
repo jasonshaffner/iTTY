@@ -41,7 +41,7 @@ class iTTY:
 
     def __enter__(self, **kwargs):
         """
-        Support for "with" statements
+        Context Manager
         """
         self.__init__
         self.login()
@@ -50,14 +50,14 @@ class iTTY:
 
     def __exit__(self, *args):
         """
-        Support for "with" statements
+        Context Manager
         """
         self.logout()
 
 
     async def __aenter__(self, **kwargs):
         """
-        Support for "async with" statements
+        Asynchronous Context Manager
         """
         self.__init__
         await self.async_login()
@@ -66,14 +66,14 @@ class iTTY:
 
     async def __aexit__(self, *args):
         """
-        Support for "async with" statements
+        Asynchronous Context Manager
         """
         self.logout()
 
 
     def set_host(self, host):
         """
-        Sets which host to login and run_ commands
+        Sets host variable
         """
         self.host = host
 
@@ -86,6 +86,9 @@ class iTTY:
 
 
     def clear_host(self):
+        """
+        Sets host variable = None
+        """
         self.host = None
 
 
@@ -109,13 +112,16 @@ class iTTY:
 
 
     def clear_login(self):
+        """
+        Sets username and password variables = None
+        """
         self.username = None
         self.password = None
 
 
     def verify_login_parameters(self):
         """
-        Verifies that all necessary login parameters are set, returns 0 if one is missing
+        Verifies that all necessary login parameters are set, raises LoginParametersNotSpecifiedError if not
         """
         if not self.username or not self.password or not self.host:
             raise LoginParametersNotSpecifiedError
@@ -231,17 +237,20 @@ class iTTY:
 
 
     def clear_os(self):
+        """
+        Sets os variable = 0
+        """
         self.os = 0
 
 
     def set_commands(self, commands):
         """
-        Takes a list of commands as arg, set_s commands to that list
+        Takes a list of commands as arg, sets commands to that list
         """
         self.commands = commands
 
 
-    def set_commandsfromfile(self, file):
+    def set_commands_from_file(self, file):
         """
         Takes a file with list of commands as arg, set_s commands to that list
         """
@@ -263,6 +272,9 @@ class iTTY:
 
 
     def clear_commands(self):
+        """
+        Sets commands variable = []
+        """
         self.commands = []
 
 
@@ -288,17 +300,21 @@ class iTTY:
 
 
     def clear_output(self):
+        """
+        Sets output variable = []
+        """
         self.output = []
 
 
     def login(self, **kwargs):
+        """
+        Attempts to login to self.host using self.username and self.password to authenticate
+        """
         if kwargs:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
-        if not self.verify_login_parameters():
-            raise LoginParametersNotSpecifiedError
-            return
+        self.verify_login_parameters()
         try:
             return self.secure_login()
         except CouldNotConnectError:
@@ -306,12 +322,14 @@ class iTTY:
 
 
     async def async_login(self, **kwargs):
+        """
+        Attempts to login to self.host using self.username and self.password to authenticate
+        """
         if kwargs:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
-        if not self.verify_login_parameters():
-            return
+        self.verify_login_parameters()
         try:
             return await self.async_secure_login()
         except CouldNotConnectError:
@@ -326,8 +344,7 @@ class iTTY:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
-        if not self.verify_login_parameters():
-            return
+        self.verify_login_parameters()
         try:
             self.session = paramiko.SSHClient() #Create instance of SSHClient object
             self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -346,24 +363,29 @@ class iTTY:
             raise CouldNotConnectError(self.host)
 
     async def async_secure_login(self, **kwargs):
+        """
+        Attempts to login to devices via SSH asyncrhonously, returns OS type if successful, if not returns 0
+        """
         if kwargs:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
         if not isinstance(self.password, bytes):
             self.password = self.password.encode()
-        if not self.verify_login_parameters():
-            return
+        self.verify_login_parameters()
         self.session = paramiko.SSHClient() #Create instance of SSHClient object
         self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        await self.async_connect()
+        await self._async_connect()
         await asyncio.sleep(self.timeout)  #Allow time to log in and strip MOTD
-        self.prompt = await self.async_get_prompt()
+        self.prompt = await self._async_get_prompt()
         await self.async_set_os(self.prompt)
         return self.os
 
     @asyncio.coroutine
-    def async_connect(self):
+    def _async_connect(self):
+        """
+        Helper to async_secure_login, performs the login via SSH
+        """
         loop = asyncio.get_event_loop()
         try:
             yield from loop.run_in_executor(None, partial(self.session.connect,\
@@ -381,7 +403,10 @@ class iTTY:
 
 
     @asyncio.coroutine
-    def async_get_prompt(self):
+    def _async_get_prompt(self):
+        """
+        Helper to async_secure_login, finds the prompt for the device
+        """
         loop = asyncio.get_event_loop()
         raw_prompt = yield from loop.run_in_executor(None, partial(self.shell.recv, 10000))
         return raw_prompt.decode().split('\n')[-1].split('*')[-1].strip().lstrip('*')
@@ -395,8 +420,7 @@ class iTTY:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
-        if not self.verify_login_parameters():
-            return
+        self.verify_login_parameters()
         if not isinstance(self.password, bytes):
             self.password = self.password.encode()
         try:
@@ -406,17 +430,14 @@ class iTTY:
             _, match, _ = self.session.expect([login_regex, ], timeout=self.timeout)
             if not match:
                 raise CouldNotConnectError(self.host)
-                return
             self.session.write(self.username.encode() + b'\r')
             _, match, _ = self.session.expect([b'assword'], timeout=self.timeout)
             if not match:
                 raise CouldNotConnectError(self.host)
-                return
             self.session.write(self.password + b'\r')
             _, match, previous_text = self.session.expect([prompt_regex,], timeout=self.timeout)
             if not match:
                 raise CouldNotConnectError(self.host)
-                return
             self.prompt = previous_text.split(b'\n')[-1].strip().decode().lstrip('*')
             self.set_os(self.prompt)
             return self.os
@@ -425,58 +446,63 @@ class iTTY:
 
 
     async def async_unsecure_login(self, **kwargs):
+        """
+        Attempts fo login to devices via Telnet asynchronously, returns OS type if successful, if not returns 0
+        """
         if kwargs:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
         loop = asyncio.get_event_loop()
-        if not self.verify_login_parameters():
-            return
+        self.verify_login_parameters()
         if not isinstance(self.password, bytes):
             self.password = self.password.encode()
         login_regex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
         prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
         try:
-            await self.async_telnet_login()
+            await self._async_telnet_login()
             if not self.session:
-                return
-            if not await self.async_expect(login_regex, self.timeout):
-                self.session = None
-                return
+                raise CouldNotConnectError(self.host)
+            if not await self._async_expect(login_regex, self.timeout):
+                raise CouldNotConnectError(self.host)
             self.session.write(self.username.encode() + b'\r')
-            if not self.async_expect(b'assword', self.timeout):
-                self.session = None
-                return
+            if not self._async_expect(b'assword', self.timeout):
+                raise CouldNotConnectError(self.host)
             self.session.write(self.password + b'\r')
-            match = await self.async_expect(prompt_regex, self.timeout)
+            match = await self._async_expect(prompt_regex, self.timeout)
             if match:
                 self.prompt = match.split(b'\n')[-1].strip().decode().lstrip('*')
             else:
                 raise CouldNotConnectError(self.host)
-                return
             await self.async_set_os(self.prompt)
             return self.os
         except (ConnectionResetError, CouldNotConnectError, BrokenPipeError):
-            self.session = None
             raise CouldNotConnectError(self.host)
-            return
 
     @asyncio.coroutine
-    def async_telnet_login(self):
+    def _async_telnet_login(self):
+        """
+        Helper to async_unsecure_login, performs login
+        """
         loop = asyncio.get_event_loop()
         try:
             self.session = yield from loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
         except (ConnectionRefusedError, OSError, socket.timeout, BrokenPipeError):
             raise CouldNotConnectError(self.host)
-            return
 
     def telnet_or_ssh(self):
+        """
+        Returns 'SSH' if login via SSH, else Telnet if login via Telnet
+        """
         if isinstance(self.session, paramiko.SSHClient):
             return 'SSH'
         elif isinstance(self.session, telnetlib.Telnet):
             return 'Telnet'
 
     def run_commands(self, command_delay, command_header=0, done=False):
+        """
+        Runs commands stored in self.commands on remote device
+        """
         if self.shell:
             return self.run_sec_commands(command_delay, command_header=command_header, done=done)
         elif self.session:
@@ -484,6 +510,9 @@ class iTTY:
 
 
     async def async_run_commands(self, command_delay, command_header=0, done=False):
+        """
+        Runs commands stored in self.commands asynchronously on remote device
+        """
         if self.shell:
             return await self.async_run_sec_commands(command_delay, command_header=command_header, done=done)
         elif self.session:
@@ -513,6 +542,9 @@ class iTTY:
         return self.get_output()
 
     async def async_run_sec_commands(self, command_delay=1, command_header=0, done=False):
+        """
+        Runs commands asynchronously when logged in via SSH, returns output
+        """
         for command in self.commands:
             if not isinstance(command, bytes):
                 command = command.encode()
@@ -571,8 +603,11 @@ class iTTY:
 
 
     async def async_run_unsec_commands(self, command_delay=1, command_header=0, done=False):
+        """
+        Runs commands asynchronously when logged in via Telnet, returns output
+        """
         for command in self.commands:
-            output = await self.async_run_unsec_command(command, command_delay)
+            output = await self._async_run_unsec_command(command, command_delay)
             if output and (str(command) != str(self.password) and str(command) != str(self.username)):
                 if command_header:
                     self.add_to_output([''.join(('\n', _underline(command))), ])
@@ -581,17 +616,23 @@ class iTTY:
             self.logout()
         return self.output
 
-    async def async_run_unsec_command(self, command, command_delay):
+    async def _async_run_unsec_command(self, command, command_delay):
+        """
+        Helper to async_run_unsec_commands, writes are returns output of commands
+        """
         try:
-            await self.async_expect(command_delay=command_delay)
+            await self._async_expect(command_delay=command_delay)
             self.session.write(command.strip().encode() + b'\r')
-            return await self.async_expect(command_delay=command_delay)
+            return await self._async_expect(command_delay=command_delay)
         except (BrokenPipeError, ConnectionResetError):
-            return
+            pass
 
 
     @asyncio.coroutine
-    def async_expect(self, expectation=None, command_delay=1):
+    def _async_expect(self, expectation=None, command_delay=1):
+        """
+        Helper to async_run_unsec_commands, performs "expect"
+        """
         loop = asyncio.get_event_loop()
         if not expectation:
             expectation = re.compile(self.prompt.encode())
@@ -604,9 +645,12 @@ class iTTY:
             if match:
                 return output
         except (EOFError, ConnectionResetError):
-            return
+            pass
 
     def logout(self):
+        """
+        Performs logout of SSH and Telnet logins
+        """
         try:
             if self.shell:
                 self.shell.close()
@@ -618,6 +662,9 @@ class iTTY:
 
 
     def sift_output(self, *sift_out):
+        """
+        Helper command that sifts unwanted output from output
+        """
         dont_print = ['enable', 'Password:', 'terminal length', 'screen-length', 'Screen length', \
             'terminal pager', 'environment no more', '{master', '{primary', '{secondary', 'Building config', \
             'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',] + list(sift_out)
@@ -631,14 +678,26 @@ class iTTY:
 
 
 def _underline(input, line_char="-"):
+    """
+    Format helper, makes lines under a string
+    """
     return input.strip() + '\n' + _make_line(len(input.strip()), line_char)
 
 
 def _make_line(count, line_char="-"):
+    """
+    Format helper, makes lines
+    """
     return line_char * int(count)
 
 class CouldNotConnectError(Exception):
+    """
+    Exception that is raised when unable to connect to a remote device
+    """
     pass
 
 class LoginParametersNotSpecifiedError(Exception):
+    """
+    Exception that is rasied when either username or password is not specified before login
+    """
     pass
