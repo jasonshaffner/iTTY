@@ -441,9 +441,9 @@ async def extract_cisco_hostname(tty):
         domain = ''
         for out in output:
             for line in out:
-                if not re.search('show', line) and re.search('hostname', line):
+                if not re.search('show|logging', line) and re.search('hostname', line):
                     hostname = line.split()[-1]
-                elif not re.search('show', line) and re.search('domain', line):
+                elif not re.search('show|logging', line) and re.search('domain', line):
                     domain = line.split()[-1]
                 if hostname and domain:
                     return '.'.join((hostname, domain))
@@ -605,7 +605,7 @@ async def extract_cisco_location(tty):
     if output:
         for out in output:
             for line in out:
-                if not re.search('show|vlan|modem|banner|cpu0', line, flags=re.IGNORECASE) and re.search('location', line):
+                if not re.search('show|vlan|modem|banner|cpu0|description|note', line, flags=re.IGNORECASE) and re.search('location', line):
                     return line.split('location')[-1].strip().strip('"')
 
 async def extract_junos_location(tty):
