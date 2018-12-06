@@ -150,6 +150,8 @@ class iTTY:
                 self.os = 7
             elif re.search('Invalid', str(output)):
                 self.os = 10 #Niagara
+            elif re.search('ACSW', str(output)):
+                self.os = 5
             else:
                 self.os = 3    #IOS
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
@@ -200,6 +202,8 @@ class iTTY:
                 self.os = 7 #Arista
             elif re.search('Invalid', str(output)):
                 self.os = 10 #Niagara
+            elif re.search('ACSW', str(output)):
+                self.os = 5
             else:
                 self.os = 3    #IOS
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
