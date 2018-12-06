@@ -334,14 +334,16 @@ async def extract_alu_model(tty):
     """
     Extracts model of remote alcatel/nokia device
     """
-    tty.set_commands(['show version | match Type'])
+    tty.set_commands(['show chassis | match Type'])
     output = await tty.async_run_commands(10)
+    print(output)
     tty.clear_output()
     if output:
         for out in output:
             for line in out:
+                print(line)
                 if re.search('Type', line) and not re.search('show', line):
-                    return line.split(':')[1].strip()
+                    return "".join(line.split(':')[1].split()).strip()
 
 async def extract_xr_model(tty):
     """
@@ -927,14 +929,14 @@ async def extract_ios_series(tty):
 
 async def extract_alu_series(tty):
     return
-    tty.set_commands([''])
+    tty.set_commands(['show chassis | Type'])
     output = await tty.async_run_commands(10)
     tty.clear_output()
     if output:
         for out in output:
             for line in out:
-                if re.search('', line.strip()):
-                    return
+                if re.search('Type', line.strip()):
+                    return "".join((line.split()[-1].split('-')[0], line.split()[-2])).lower()
 
 async def extract_xr_series(tty):
     tty.set_commands(["show version brief | in memory"])
