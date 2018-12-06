@@ -252,7 +252,7 @@ async def extract_junos_version(tty):
     """
     Extracts software version of remote juniper device
     """
-    tty.set_commands(['show version | match "Software Suite"'])
+    tty.set_commands(['set cli screen-length 0', 'show version | match "Software Suite"'])
     output = await tty.async_run_commands(10)
     tty.clear_output()
     if output:
@@ -397,7 +397,7 @@ async def extract_junos_model(tty):
     """
     Extracts model of remote juniper device
     """
-    tty.set_commands(['show version | match Model'])
+    tty.set_commands(['set cli screen-length 0', 'show version local | match Model'])
     output = await tty.async_run_commands(10)
     tty.clear_output()
     if output:
@@ -521,7 +521,7 @@ async def extract_junos_hostname(tty):
     """
     Extracts hostname of remote juniper device
     """
-    tty.set_commands(['show configuration | display set | match "host-name"', 'show configuration | display set | match domain-name'])
+    tty.set_commands(['set cli screen-length 0', 'show configuration | display set | match "host-name"', 'show configuration | display set | match domain-name'])
     output = await tty.async_run_commands(10)
     tty.clear_output()
     if output:
@@ -616,7 +616,7 @@ async def extract_junos_contact(tty):
     """
     Extracts contact of remote juniper device
     """
-    tty.set_commands(['show configuration | display set | match contact'])
+    tty.set_commands(['set cli screen-length 0', 'show configuration | display set | match contact'])
     output = await tty.async_run_commands(10)
     tty.clear_output()
     if output:
@@ -688,7 +688,7 @@ async def extract_junos_location(tty):
     """
     Extracts location of remote juniper device
     """
-    tty.set_commands(['show configuration | display set | match location'])
+    tty.set_commands(['set cli screen-length 0', 'show configuration | display set | match location'])
     output = await tty.async_run_commands(10)
     tty.clear_output()
     if output:
@@ -791,7 +791,7 @@ async def extract_junos_syslog_server(tty):
     """
     Extracts configured syslog servers of remote juniper device
     """
-    tty.set_commands(["show configuration | display set | match syslog\ host"])
+    tty.set_commands(['set cli screen-length 0', "show configuration | display set | match syslog\ host"])
     output = await tty.async_run_commands(10)
     tty.clear_output()
     if output:
@@ -882,7 +882,7 @@ async def extract_a10_syslog_server(tty):
                         print('extract_a10_syslog_server: INDEXERROR: ', tty.host, line)
 
 async def extract_junos_series(tty):
-    tty.set_commands(['show version local | match Model'])
+    tty.set_commands(['set cli screen-length 0', 'show version local | match Model'])
     output = await tty.async_run_commands(10)
     tty.clear_output()
     if output:
