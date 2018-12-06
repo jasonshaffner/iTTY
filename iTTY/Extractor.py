@@ -336,12 +336,10 @@ async def extract_alu_model(tty):
     """
     tty.set_commands(['show chassis | match Type'])
     output = await tty.async_run_commands(10)
-    print(output)
     tty.clear_output()
     if output:
         for out in output:
             for line in out:
-                print(line)
                 if re.search('Type', line) and not re.search('show', line):
                     return "".join(line.split(':')[1].split()).strip()
 
@@ -389,12 +387,8 @@ async def extract_ios_model(tty):
                 if re.search('memory.', line) \
                     and (not re.search('show', line)\
                     or not re.search('ermission', line)):
-                    if re.search('7600', line.split()[1]):
-                        print('----------7600----------', tty.host, line)
                     return line.split()[1]
                 elif re.search('Nexus.*Chassis', line):
-                    if re.search('7600', line.split()[1]):
-                        print(tty.host, line)
                     if re.search('Nexus\d{1,4}', line):
                         return re.search('Nexus\d{1,4}', line).group(0)
                     return line.split()[2]
@@ -410,8 +404,6 @@ async def extract_junos_model(tty):
         for out in output:
             for line in out:
                 if re.search('Model', line) and not re.search('show', line):
-                    if re.search('Model', line.split()[-1], flags=re.IGNORECASE):
-                        print(tty.host, 'JUNOS_MODEL == Model', line)
                     return line.split()[-1]
 
 async def extract_asa_model(tty):
@@ -424,7 +416,6 @@ async def extract_asa_model(tty):
         tty.set_commands(['terminal pager 0', 'show version | in Hardware', 'show inventory | in PID'])
     output = await tty.async_run_commands(10)
     tty.clear_output()
-    print(str(output))
     if re.search('Hardware:', str(output)):
         for out in output:
             for line in out:
@@ -437,7 +428,6 @@ async def extract_asa_model(tty):
     elif re.search('PID', str(output)):
         for out in output:
             for line in out:
-                print(line)
                 if re.search('PID', line) and not re.search('show', line):
                     try:
                         return line.split()[1].strip(',')
