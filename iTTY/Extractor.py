@@ -637,7 +637,10 @@ async def extract_f5_contact(tty):
             for line in out:
                 if not re.search('list', line) and re.search('contact', line):
                     try:
-                        return line.split('"')[1]
+                        if re.search('"', line):
+                            return line.split('"')[1]
+                        else:
+                            return line.split()[-1]
                     except IndexError:
                         print('extract_f5_contact: INDEXERROR: ', tty.host, line)
 
@@ -653,7 +656,10 @@ async def extract_a10_contact(tty):
             for line in out:
                 if not re.search('show', line) and re.search('contact', line):
                     try:
-                        return line.split('"')[1]
+                        if re.search('"', line):
+                            return line.split('"')[1]
+                        else:
+                            return line.split()[-1]
                     except IndexError:
                         print('extract_a10_contact: INDEXERROR: ', tty.host, line)
 
