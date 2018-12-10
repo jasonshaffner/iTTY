@@ -445,7 +445,7 @@ class iTTY:
             self.prompt = previous_text.split(b'\n')[-1].strip().decode().lstrip('*')
             self.set_os(self.prompt)
             return self.os
-        except (CouldNotConnectError, ConnectionResetError, BrokenPipeError):
+        except (CouldNotConnectError, ConnectionResetError, BrokenPipeError, ConnectionRefusedError):
             raise CouldNotConnectError(self.host)
 
 
@@ -480,7 +480,7 @@ class iTTY:
                 raise CouldNotConnectError(self.host)
             await self.async_set_os(self.prompt)
             return self.os
-        except (ConnectionResetError, CouldNotConnectError, BrokenPipeError):
+        except (ConnectionResetError, CouldNotConnectError, BrokenPipeError, ConnectionRefusedError):
             raise CouldNotConnectError(self.host)
 
     @asyncio.coroutine
