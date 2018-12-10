@@ -448,7 +448,7 @@ class iTTY:
             self.prompt = previous_text.split(b'\n')[-1].strip().decode().lstrip('*')
             self.set_os(self.prompt)
             return self.os
-        except (CouldNotConnectError, ConnectionResetError, BrokenPipeError, ConnectionRefusedError, EOFError, socket.timeout):
+        except (CouldNotConnectError, ConnectionResetError, BrokenPipeError, ConnectionRefusedError, EOFError, OSError, socket.timeout):
             self.session = None
             raise CouldNotConnectError(self.host)
 
@@ -600,15 +600,13 @@ class iTTY:
             self.session.write((command.strip() + b'\r'))
             try:
                 _, _, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
-            except (EOFError, ConnectionResetError):
+            except (EOFError, BrokenPipeError, ConnectionResetError):
                 self.unsecure_login()
                 self.session.write((command.strip() + b'\r'))
                 try:
                     _, _, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
-                except Exception:
+                except (EOFError, BrokenPipeError, ConnectionResetError):
                     return
-            except Exception:
-                return
             time.sleep(command_delay)
             if output and (str(command) != str(self.password) and str(command) != str(self.username)):
                 if command_header:
