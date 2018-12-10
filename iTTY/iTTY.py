@@ -363,7 +363,9 @@ class iTTY:
             self.prompt = self.shell.recv(10000).decode().split('\n')[-1].strip().lstrip('*')
             self.set_os(self.prompt)
             return self.os
-        except:
+        except (paramiko.ssh_exception.SSHException, paramiko.ssh_exception.NoValidConnectionsError, paramiko.ssh_exception.AuthenticationException, socket.error):
+            self.session = None
+            self.shell = None
             raise CouldNotConnectError(self.host)
 
     async def async_secure_login(self, **kwargs):
@@ -400,7 +402,7 @@ class iTTY:
                                     allow_agent=False,\
                                     timeout=self.timeout))
             self.shell = yield from loop.run_in_executor(None, self.session.invoke_shell)
-        except Exception:
+        except (paramiko.ssh_exception.SSHException, paramiko.ssh_exception.NoValidConnectionsError, paramiko.ssh_exception.AuthenticationException, socket.error):
             self.session = None
             self.shell = None
             raise CouldNotConnectError(self.host)
@@ -445,7 +447,8 @@ class iTTY:
             self.prompt = previous_text.split(b'\n')[-1].strip().decode().lstrip('*')
             self.set_os(self.prompt)
             return self.os
-        except (CouldNotConnectError, ConnectionResetError, BrokenPipeError, ConnectionRefusedError):
+        except (CouldNotConnectError, ConnectionResetError, BrokenPipeError, ConnectionRefusedError, EOFError):
+            self.session = None
             raise CouldNotConnectError(self.host)
 
 
@@ -480,7 +483,8 @@ class iTTY:
                 raise CouldNotConnectError(self.host)
             await self.async_set_os(self.prompt)
             return self.os
-        except (ConnectionResetError, CouldNotConnectError, BrokenPipeError, ConnectionRefusedError):
+        except (ConnectionResetError, CouldNotConnectError, BrokenPipeError):
+            self.session = None
             raise CouldNotConnectError(self.host)
 
     @asyncio.coroutine
@@ -491,7 +495,7 @@ class iTTY:
         loop = asyncio.get_event_loop()
         try:
             self.session = yield from loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
-        except (ConnectionRefusedError, OSError, socket.timeout, BrokenPipeError):
+        except (ConnectionRefusedError, OSError, socket.timeout, BrokenPipeError, EOFError):
             raise CouldNotConnectError(self.host)
 
     def telnet_or_ssh(self):
@@ -530,13 +534,21 @@ class iTTY:
         for command in self.get_commands():
             if not isinstance(command, bytes):
                 command = command.encode()
-            reattempts = 0
-            while not self.shell.get_transport().is_active():
-                reattempts += 1
-                self.secure_login()
-                if reattempts > 2 and not self.shell.get_transport().is_active():
+            try:
+                if not self.shell.get_transport().is_active():
+                    try:
+                        self.secure_login()
+                    except CouldNotConnectError:
+                        return
+            except OSError:
+                try:
+                    self.secure_login()
+                except CouldNotConnectError:
                     return
-            self.shell.send(command.strip() + b'\r')
+            try:
+                self.shell.send(command.strip() + b'\r')
+            except OSError:
+                return
             time.sleep(command_delay)
             if command_header:
                 self.add_to_output(['\n' + _underline(command), ])
