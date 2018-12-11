@@ -364,7 +364,7 @@ class iTTY:
             self.prompt = self.shell.recv(10000).decode().split('\n')[-1].strip().lstrip('*')
             self.set_os(self.prompt)
             return self.os
-        except (SSHException, NoValidConnectionsError, AuthenticationException, ValueError, socket.error, socket.timeout):
+        except (SSHException, NoValidConnectionsError, AuthenticationException, ValueError, EOFError, socket.error, socket.timeout):
             self.session = None
             self.shell = None
             raise CouldNotConnectError(self.host)
@@ -403,7 +403,7 @@ class iTTY:
                                     allow_agent=False,\
                                     timeout=self.timeout))
             self.shell = yield from loop.run_in_executor(None, self.session.invoke_shell)
-        except (SSHException, NoValidConnectionsError, AuthenticationException, ValueError, socket.error, socket.timeout):
+        except (SSHException, NoValidConnectionsError, AuthenticationException, ValueError, EOFError, socket.error, socket.timeout):
             self.session = None
             self.shell = None
             raise CouldNotConnectError(self.host)
