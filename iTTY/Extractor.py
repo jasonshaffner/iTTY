@@ -151,6 +151,27 @@ async def extract_syslog_server(tty):
     elif tty.os == 8:
         return await extract_a10_syslog_server(tty)
 
+async def extract_trap_collector(tty):
+    """
+    Extracts "trap collector" of remote device
+    """
+    if tty.os == 1:
+        return await extract_alu_trap_collector(tty)
+    elif tty.os == 2:
+        return await extract_xr_trap_collector(tty)
+    elif tty.os == 3:
+        return await extract_ios_trap_collector(tty)
+    elif tty.os == 4:
+        return await extract_junos_trap_collector(tty)
+    elif tty.os == 5:
+        return await extract_asa_trap_collector(tty)
+    elif tty.os == 6:
+        return await extract_f5_trap_collector(tty)
+    elif tty.os == 7:
+        return await extract_arista_trap_collector(tty)
+    elif tty.os == 8:
+        return await extract_a10_trap_collector(tty)
+
 async def extract_alu_version(tty):
     """
     Extracts software version of remote alcatel/nokia device
@@ -746,16 +767,9 @@ async def extract_alu_syslog_server(tty):
     tty.set_commands(['admin display-config | match syslog context children | match address'])
     output = await tty.async_run_commands(10)
     tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        syslogs = set()
-        for out in output:
-            for line in out:
-                if not re.search('admin', line) and re.search('address', line):
-                    try:
-                        syslogs.add(line.split()[-1])
-                    except IndexError:
-                        print('extract_alu_syslog_server: INDEXERROR: ', tty.host, line)
-        return syslogs
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
 
 async def extract_xr_syslog_server(tty):
     """
@@ -764,16 +778,9 @@ async def extract_xr_syslog_server(tty):
     tty.set_commands(["show run formal | utility egrep '^logging [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'"])
     output = await tty.async_run_commands(10)
     tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        syslogs = set()
-        for out in output:
-            for line in out:
-                if not re.search('show', line) and re.search('logging', line):
-                    try:
-                        syslogs.add(line.split()[1])
-                    except IndexError:
-                        print('extract_xr_syslog_server: INDEXERROR: ', tty.host, line)
-        return syslogs
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
 
 async def extract_ios_syslog_server(tty):
     """
@@ -782,16 +789,9 @@ async def extract_ios_syslog_server(tty):
     tty.set_commands(["show run | in logging"])
     output = await tty.async_run_commands(10)
     tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        syslogs = set()
-        for out in output:
-            for line in out:
-                if not re.search('show', line) and re.match('logging', line) and re.search('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', line):
-                    try:
-                        syslogs.add(re.search('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', line).group(0))
-                    except IndexError:
-                        print('extract_ios_syslog_server: INDEXERROR: ', tty.host, line)
-        return syslogs
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
 
 async def extract_junos_syslog_server(tty):
     """
@@ -800,16 +800,9 @@ async def extract_junos_syslog_server(tty):
     tty.set_commands(['set cli screen-length 0', "show configuration | display set | match syslog\ host"])
     output = await tty.async_run_commands(10)
     tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        syslogs = set()
-        for out in output:
-            for line in out:
-                if not re.search('show', line) and re.search('syslog', line):
-                    try:
-                        syslogs.add(line.split('host')[1].split()[0])
-                    except IndexError:
-                        print('extract_junos_syslog_server: INDEXERROR: ', tty.host, line)
-        return syslogs
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
 
 async def extract_asa_syslog_server(tty):
     """
@@ -818,16 +811,9 @@ async def extract_asa_syslog_server(tty):
     tty.set_commands(['show run | in logging host'])
     output = await tty.async_run_commands(10)
     tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        syslogs = set()
-        for out in output:
-            for line in out:
-                if not re.search('show', line) and re.match('logging', line):
-                    try:
-                        syslogs.add(line.split()[-1])
-                    except IndexError:
-                        print('extract_asa_syslog_server: INDEXERROR: ', tty.host, line)
-        return syslogs
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
 
 async def extract_f5_syslog_server(tty):
     """
@@ -836,16 +822,9 @@ async def extract_f5_syslog_server(tty):
     tty.set_commands(['show running-config sys syslog'])
     output = await tty.async_run_commands(10)
     tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        syslogs = set()
-        for out in output:
-            for line in out:
-                if not re.search('show', line) and re.search('host', line):
-                    try:
-                        syslogs.add(line.split()[-1])
-                    except IndexError:
-                        print('extract_f5_syslog_server: INDEXERROR: ', tty.host, line)
-        return syslogs
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
 
 async def extract_arista_syslog_server(tty):
     """
@@ -854,16 +833,9 @@ async def extract_arista_syslog_server(tty):
     tty.set_commands(["show run | in logging host"])
     output = await tty.async_run_commands(10)
     tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        syslogs = set()
-        for out in output:
-            for line in out:
-                if not re.search('show', line) and re.match('logging', line):
-                    try:
-                        syslogs.add(line.split()[-1])
-                    except IndexError:
-                        print('extract_arista_syslog_server: INDEXERROR: ', tty.host, line)
-        return syslogs
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
 
 async def extract_a10_syslog_server(tty):
     """
@@ -872,20 +844,9 @@ async def extract_a10_syslog_server(tty):
     tty.set_commands(["show run | in logging host"])
     output = await tty.async_run_commands(10)
     tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        for out in output:
-            for line in out:
-                if not re.search('show', line) and re.match('logging', line):
-                    try:
-                        syslogs = set()
-                        servers = line.split('host')[1].split()
-                        while servers:
-                            server = servers.pop()
-                            if re.match('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', server):
-                                syslogs.add(server)
-                        return syslogs
-                    except IndexError:
-                        print('extract_a10_syslog_server: INDEXERROR: ', tty.host, line)
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
 
 async def extract_junos_series(tty):
     tty.set_commands(['set cli screen-length 0', 'show version local | match Model'])
@@ -975,3 +936,67 @@ async def extract_arista_series(tty):
             for line in out:
                 if re.search('Arista', line) and not re.search('show', line):
                     return line.split('Arista')[1].split('-')[1].strip()
+
+async def extract_alu_trap_collector(tty):
+    tty.set_commands(['admin display config | match trap-target'])
+    output = await tty.async_run_commands(10)
+    tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+    if output:
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+
+async def extract_xr_trap_collector(tty):
+    tty.set_commands(['show run formal | in host.*traps'])
+    output = await tty.async_run_commands(10)
+    tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+    if output:
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+
+async def extract_ios_trap_collector(tty):
+    tty.set_commands(['show run | in snmp-server.*host'])
+    output = await tty.async_run_commands(10)
+    tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+    if output:
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+
+async def extract_junos_trap_collector(tty):
+    tty.set_commands(['show configuration | display set | match trap.*targets'])
+    output = await tty.async_run_commands(10)
+    tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+    if output:
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+
+async def extract_asa_trap_collector(tty):
+    tty.set_commands(['show run | in snmp.*host'])
+    output = await tty.async_run_commands(10)
+    tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+    if output:
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line) and not re.search('poll', line)])
+
+async def extract_f5_trap_collector(tty):
+    tty.set_commands(['show running-config sys snmp traps | grep host'])
+    output = await tty.async_run_commands(10)
+    tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+    if output:
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+
+async def extract_arista_trap_collector(tty):
+    tty.set_commands(['show run | in snmp-server.*host'])
+    output = await tty.async_run_commands(10)
+    tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+    if output:
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+
+async def extract_a10_trap_collector(tty):
+    tty.set_commands(['show run | in snmp-server.*host'])
+    output = await tty.async_run_commands(10)
+    tty.clear_output()
+    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+    if output:
+        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
