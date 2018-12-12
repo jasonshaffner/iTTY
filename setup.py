@@ -14,6 +14,7 @@ setup(
                 'scripts/check_contact',
 		'scripts/check_location',
 		'scripts/check_syslog',
+		'scripts/check_trap_collectors',
                 'scripts/verify_login',
         ],
         classifiers=[
