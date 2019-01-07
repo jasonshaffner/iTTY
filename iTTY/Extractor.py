@@ -172,6 +172,27 @@ async def extract_trap_collector(tty):
     elif tty.os == 8:
         return await extract_a10_trap_collector(tty)
 
+async def extract_acl(tty, acl_name):
+    """
+    Extracts "trap collector" of remote device
+    """
+    if tty.os == 1:
+        return await extract_alu_acl(tty, acl_name)
+    elif tty.os == 2:
+        return await extract_xr_acl(tty, acl_name)
+    elif tty.os == 3:
+        return await extract_ios_acl(tty, acl_name)
+    elif tty.os == 4:
+        return await extract_junos_acl(tty, acl_name)
+    elif tty.os == 5:
+        return await extract_asa_acl(tty, acl_name)
+    elif tty.os == 6:
+        return await extract_f5_acl(tty, acl_name)
+    elif tty.os == 7:
+        return await extract_arista_acl(tty, acl_name)
+    elif tty.os == 8:
+        return await extract_a10_acl(tty, acl_name)
+
 async def extract_alu_version(tty):
     """
     Extracts software version of remote alcatel/nokia device
@@ -1000,3 +1021,38 @@ async def extract_a10_trap_collector(tty):
     ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
         return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+
+async def extract_alu_acl(tty, acl_name):
+    tty.set_commands([f'admin display-config | match "prefix-list \"{acl_name}\"" context all'])
+    tty.clear_output()
+    output = await tty.async_run_commands(10)
+    if output:
+        return tty.sift_output([tty.username, tty.password, tty.prompt])
+
+async def extract_xr_acl(tty, acl_name):
+    tty.set_commands([f'show access-list {acl-name}'])
+    tty.clear_output()
+    output = await tty.async_run_commands(10)
+    if output:
+        return tty.sift_output([tty.username, tty.password, tty.prompt])
+
+async def extract_ios_acl(tty, acl_name):
+    tty.set_commands([f'show ip access-list {acl-name}'])
+    tty.clear_output()
+    output = await tty.async_run_commands(10)
+    if output:
+        return tty.sift_output([tty.username, tty.password, tty.prompt])
+
+async def extract_junos_acl(tty, acl_name):
+    tty.set_commands([f'show configuration firewall | display set | match {acl-name}'])
+    tty.clear_output()
+    output = await tty.async_run_commands(10)
+    if output:
+        return tty.sift_output([tty.username, tty.password, tty.prompt])
+
+async def extract_arista_acl(tty, acl_name):
+    tty.set_commands([f'show ip access-list {acl-name}'])
+    tty.clear_output()
+    output = await tty.async_run_commands(10)
+    if output:
+        return tty.sift_output([tty.username, tty.password, tty.prompt])
