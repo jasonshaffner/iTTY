@@ -184,14 +184,14 @@ async def extract_acl(tty, acl_name):
         return await extract_ios_acl(tty, acl_name)
     elif tty.os == 4:
         return await extract_junos_acl(tty, acl_name)
-    elif tty.os == 5:
-        return await extract_asa_acl(tty, acl_name)
-    elif tty.os == 6:
-        return await extract_f5_acl(tty, acl_name)
+    #elif tty.os == 5:
+    #    return await extract_asa_acl(tty, acl_name)
+    #elif tty.os == 6:
+    #    return await extract_f5_acl(tty, acl_name)
     elif tty.os == 7:
         return await extract_arista_acl(tty, acl_name)
-    elif tty.os == 8:
-        return await extract_a10_acl(tty, acl_name)
+    #elif tty.os == 8:
+    #    return await extract_a10_acl(tty, acl_name)
 
 async def extract_alu_version(tty):
     """
