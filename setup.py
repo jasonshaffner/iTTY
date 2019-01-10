@@ -9,7 +9,6 @@ setup(
     license="LGPL",
 	scripts=[
 		'scripts/run_commands',
-		'scripts/run_commands_with_variables',
 		'scripts/check_version',
                 'scripts/check_contact',
 		'scripts/check_location',
