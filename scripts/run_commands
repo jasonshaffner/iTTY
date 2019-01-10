@@ -7,14 +7,16 @@ import resource
 import asyncio
 import multiprocessing
 import time
+import socket
 from functools import partial
 from multiprocessing import Manager
 from stringutils import StringUtils
-from iTTY import iTTY, CouldNotConnectError
+from iTTY import iTTY, Extractor, CouldNotConnectError
 
 def parse_params():
     username = ''
     password = ''
+    timeout = 10
     device_list = []
     greppable_output = False
     if len(sys.argv) > 1:
@@ -27,6 +29,8 @@ def parse_params():
                 device_list = sys.argv[i+1]
             elif arg == '-g':
                 greppable_output = True
+            elif arg == '-t':
+                timeout = int(sys.argv[i+1])
     if not username:
         username = input("Username: ")
     if not password:
@@ -35,7 +39,7 @@ def parse_params():
         device_list = input("Device list file: ")
     if not greppable_output:
         greppable_output = True if re.match('y', input('Would you like greppable output? [y/n]'), flags=re.IGNORECASE) else False
-    return (username, password, device_list, greppable_output)
+    return (username, password, device_list, greppable_output, timeout)
 
 def get_devices(devicelist):
     devices = [[]]
@@ -106,7 +110,7 @@ def run_em(devices, report, failed):
 
 async def run_commands(device, report, failed):
     try:
-        async with iTTY(host=device, username=USERNAME, password=PASSWORD, timeout=10) as tty:
+        async with iTTY(host=device, username=USERNAME, password=PASSWORD, timeout=TIMEOUT) as tty:
             if tty.os and not COMMANDS[tty.os]:
                 print('No commands for this device-type:', OS[tty.os], 'host:', device)
                 failed.append(device)
@@ -114,9 +118,40 @@ async def run_commands(device, report, failed):
             if not tty.os:
                 print('NO OS', device)
                 return
-            tty.set_commands(COMMANDS[tty.os])
+            commands = []
+            for command in COMMANDS[tty.os]:
+                if re.search('<.*>', command):
+                    var = re.search('<.*>', command).group(0)
+                    if re.search('HOSTNAME', var):
+                        hostname = await Extractor.extract_hostname(tty=tty)
+                        tty.clear_output()
+                        if hostname:
+                            command = re.sub(var, hostname, command)
+                        else:
+                            print(f'Could not find hostname for {tty.host}')
+                            failed.append(device)
+                            return
+                    elif re.search('CONTACT', var):
+                        contact = await Extractor.extract_contact(tty=tty)
+                        if contact:
+                            command = re.sub(var, contact, command)
+                        else:
+                            print(f'Could not find contact for {tty.host}')
+                            failed.append(device)
+                            return
+                    elif re.search('LOCATION', var):
+                        location = await Extractor.extract_location(tty=tty)
+                        if location:
+                            command = re.sub(var, location, command)
+                        else:
+                            print(f'Could not find location for {tty.host}')
+                            failed.append(device)
+                            return
+                    tty.clear_output()
+                commands.append(command)
+            tty.set_commands(commands)
             output = await tty.async_run_commands(command_delay=10, command_header=1)
-            if not output:
+            if not tty.sift_output(output, tty.prompt, '-', commands):
                 print('No output from ', device)
                 failed.append(device)
                 return
@@ -140,7 +175,7 @@ async def run_commands(device, report, failed):
 
 if __name__ == '__main__':
     OS = dict({1: 'ALU', 2: 'XR', 3:'IOS', 4:'JUNOS', 5: 'ASA', 6: 'F5', 7: 'EOS', 8: 'A10', 9: 'Avocent', 10: 'Niagaga'})
-    USERNAME, PASSWORD, DEVICELIST, GREP = parse_params()
+    USERNAME, PASSWORD, DEVICELIST, GREP, TIMEOUT = parse_params()
     if not all((USERNAME, PASSWORD, DEVICELIST)):
         print('Need username, password, and devicelist to proceed')
         exit()
