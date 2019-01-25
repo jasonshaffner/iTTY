@@ -24,6 +24,5 @@ setup(
         ],
         requires=[
             'paramiko',
-            'netaddr',
         ]
 )
