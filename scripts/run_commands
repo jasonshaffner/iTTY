@@ -10,7 +10,7 @@ import time
 import socket
 from functools import partial
 from multiprocessing import Manager
-from stringutils import StringUtils
+from iTTY.utils import StringUtils
 from iTTY import iTTY, Extractor, CouldNotConnectError
 
 def parse_params():
