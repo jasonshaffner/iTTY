@@ -2,10 +2,10 @@ from distutils.core import setup
 
 setup(
     name='iTTY',
-    version='0.8',
+    version='0.9',
     description='Intelligent TTY Utilities for Network Administration',
     author='Jason Shaffner, Patrick Lawless',
-    packages=['iTTY'],
+    packages=['iTTY', 'iTTY.utils'],
     license="LGPL",
 	scripts=[
 		'scripts/run_commands',
@@ -20,8 +20,6 @@ setup(
             "Development Status :: 4 - Beta",
             "Intended Audience :: Developers",
             "Programming Language :: Python",
-            "Programming Language :: Python :: 3.5",
-            "Programming Language :: Python :: 3.6",
             "Programming Language :: Python :: 3.7",
         ],
         requires=[
