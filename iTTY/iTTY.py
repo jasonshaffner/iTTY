@@ -145,8 +145,6 @@ class iTTY:
                 output = self.run_commands(3)
             except:
                 return
-            finally:
-                self.clear_output()
             if re.search(' A10 ', str(output)):
                 self.os = 8 #A10
             elif re.search('Arista', str(output)):
@@ -165,8 +163,6 @@ class iTTY:
                 output = self.run_commands(3)
             except:
                 return
-            finally:
-                self.clear_output()
             if re.search('Arista', str(output)):
                 self.os = 7 #Arista
             elif re.search(' A10 ', str(output)):
@@ -197,8 +193,6 @@ class iTTY:
                 output = await self.async_run_commands(3)
             except:
                 return
-            finally:
-                self.clear_output()
             if re.search(' A10 ', str(output)):
                 self.os = 8 #A10
             elif re.search('Arista', str(output)):
@@ -217,8 +211,6 @@ class iTTY:
                 output = await self.async_run_commands(3)
             except:
                 return
-            finally:
-                self.clear_output()
             if re.search('Arista', str(output)):
                 self.os = 7 #Arista
             elif re.search(' A10 ', str(output)):
@@ -283,34 +275,6 @@ class iTTY:
         Sets commands variable = []
         """
         self.commands = []
-
-
-    def set_output(self, output):
-        """
-        Sets the output of commands run, overwriting any previous entries
-        """
-        self.output = output
-
-
-    def add_to_output(self, output):
-        """
-        Adds to output of commands run
-        """
-        self.output.append(output)
-
-
-    def get_output(self):
-        """
-        Returns output from client
-        """
-        return self.output
-
-
-    def clear_output(self):
-        """
-        Sets output variable = []
-        """
-        self.output = []
 
 
     def login(self, **kwargs):
@@ -534,6 +498,7 @@ class iTTY:
         """
         Runs commands when logged in via SSH, returns output
         """
+        output = []
         for command in self.get_commands():
             if not isinstance(command, bytes):
                 command = command.encode()
@@ -554,16 +519,17 @@ class iTTY:
                 return
             time.sleep(command_delay)
             if command_header:
-                self.add_to_output(['\n' + _underline(command), ])
-            self.add_to_output(self.shell.recv(500000).strip().decode(errors="ignore").split('\n')[1:])
+                output.append('\n' + _underline(command))
+            output.append(self.shell.recv(500000).strip().decode(errors="ignore").split('\n')[1:])
         if done:
             self.logout()
-        return self.get_output()
+        return output
 
     async def async_run_sec_commands(self, command_delay=1, command_header=0, done=False):
         """
         Runs commands asynchronously when logged in via SSH, returns output
         """
+        output = []
         for command in self.commands:
             if not isinstance(command, bytes):
                 command = command.encode()
@@ -585,11 +551,11 @@ class iTTY:
             await asyncio.sleep(command_delay)
             if command != self.password:
                 if command_header:
-                    self.add_to_output(['\n' + _underline(command.decode()), ])
-                self.add_to_output(self.shell.recv(500000).strip().decode(errors="ignore").split('\n')[1:])
+                    output.append(['\n' + _underline(command.decode()), ])
+                output.append(self.shell.recv(500000).strip().decode(errors="ignore").split('\n')[1:])
         if done:
             self.logout()
-        return self.get_output()
+        return output
 
 
     def run_unsec_commands(self, command_delay=1, command_header=0, done=False):
@@ -612,11 +578,11 @@ class iTTY:
             time.sleep(command_delay)
             if output and (str(command) != str(self.password) and str(command) != str(self.username)):
                 if command_header:
-                    self.add_to_output(['\n' + _underline(command.decode()), ])
-                self.add_to_output(output.decode().split('\n')[1:])
+                    output.append(['\n' + _underline(command.decode()), ])
+                output.append(output.decode().split('\n')[1:])
         if done:
             self.logout()
-        return self.get_output()
+        return output
 
 
     async def async_run_unsec_commands(self, command_delay=1, command_header=0, done=False):
@@ -627,8 +593,8 @@ class iTTY:
             output = await self._async_run_unsec_command(command, command_delay)
             if output and (str(command) != str(self.password) and str(command) != str(self.username)):
                 if command_header:
-                    self.add_to_output([''.join(('\n', _underline(command))), ])
-                self.add_to_output(output.decode().split('\n')[1:])
+                    output.append([''.join(('\n', _underline(command))), ])
+                output.append(output.decode().split('\n')[1:])
         if done:
             self.logout()
         return self.output
