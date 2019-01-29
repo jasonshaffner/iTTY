@@ -8,11 +8,13 @@ import time
 import asyncio
 import re
 import socket
+import warnings
 from functools import partial
 import paramiko
 from paramiko.ssh_exception import SSHException, NoValidConnectionsError, AuthenticationException
 
 paramiko.util.log_to_file('/dev/null')
+warnings.simplefilter("ignore")
 
 class iTTY:
     """
