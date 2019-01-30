@@ -377,7 +377,7 @@ async def extract_xr_model(tty):
     tty.set_commands(['show version brief | in "memory|hassis"'])
     output = await tty.async_run_commands(10)
     if re.search('CRS', str(output)):
-        return tty.sift_output([tty.username, tty.password, tty.prompt])[0].split()[1]
+        return tty.sift_output(output, [tty.username, tty.password, tty.prompt])[0].split()[1]
     elif re.search('ASR', str(output)):
         for out in output:
             for line in out:
@@ -964,28 +964,28 @@ async def extract_alu_acl(tty, acl_name):
     tty.set_commands([f'admin display-config | match "prefix-list \"{acl_name}\"" context all'])
     output = await tty.async_run_commands(10)
     if output:
-        return tty.sift_output([tty.username, tty.password, tty.prompt])
+        return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
 
 async def extract_xr_acl(tty, acl_name):
     tty.set_commands([f'show access-list {acl-name}'])
     output = await tty.async_run_commands(10)
     if output:
-        return tty.sift_output([tty.username, tty.password, tty.prompt])
+        return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
 
 async def extract_ios_acl(tty, acl_name):
     tty.set_commands([f'show ip access-list {acl-name}'])
     output = await tty.async_run_commands(10)
     if output:
-        return tty.sift_output([tty.username, tty.password, tty.prompt])
+        return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
 
 async def extract_junos_acl(tty, acl_name):
     tty.set_commands([f'show configuration firewall | display set | match {acl-name}'])
     output = await tty.async_run_commands(10)
     if output:
-        return tty.sift_output([tty.username, tty.password, tty.prompt])
+        return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
 
 async def extract_arista_acl(tty, acl_name):
     tty.set_commands([f'show ip access-list {acl-name}'])
     output = await tty.async_run_commands(10)
     if output:
-        return tty.sift_output([tty.username, tty.password, tty.prompt])
+        return tty.sift_output(output, [tty.username, tty.password, tty.prompt])

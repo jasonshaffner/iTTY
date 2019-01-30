@@ -562,24 +562,25 @@ class iTTY:
         """
         Runs commands when logged in via Telnet, returns output
         """
+        output = []
         for command in self.commands:
             if not isinstance(command, bytes):
                 command = command.encode()
             self.session.write((command.strip() + b'\r'))
             try:
-                _, _, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+                _, _, out = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
             except (EOFError, BrokenPipeError, ConnectionResetError):
                 self.unsecure_login()
                 self.session.write((command.strip() + b'\r'))
                 try:
-                    _, _, output = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+                    _, _, out = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
                 except (EOFError, BrokenPipeError, ConnectionResetError):
                     return
             time.sleep(command_delay)
-            if output and (str(command) != str(self.password) and str(command) != str(self.username)):
+            if out and (str(command) != str(self.password) and str(command) != str(self.username)):
                 if command_header:
                     output.append(['\n' + _underline(command.decode()), ])
-                output.append(output.decode().split('\n')[1:])
+                output.append(out.decode().split('\n')[1:])
         if done:
             self.logout()
         return output
@@ -589,15 +590,16 @@ class iTTY:
         """
         Runs commands asynchronously when logged in via Telnet, returns output
         """
+        output = []
         for command in self.commands:
-            output = await self._async_run_unsec_command(command, command_delay)
-            if output and (str(command) != str(self.password) and str(command) != str(self.username)):
+            out = await self._async_run_unsec_command(command, command_delay)
+            if out and (str(command) != str(self.password) and str(command) != str(self.username)):
                 if command_header:
                     output.append([''.join(('\n', _underline(command))), ])
-                output.append(output.decode().split('\n')[1:])
+                output.append(out.decode().split('\n')[1:])
         if done:
             self.logout()
-        return self.output
+        return output
 
     async def _async_run_unsec_command(self, command, command_delay):
         """
@@ -644,20 +646,20 @@ class iTTY:
             return
 
 
-    def sift_output(self, *sift_out):
+    def sift_output(self, output, *sift_out):
         """
         Helper command that sifts unwanted output from output
         """
         dont_print = ['enable', 'Password:', 'terminal length', 'screen-length', 'Screen length', \
             'terminal pager', 'environment no more', '{master', '{primary', '{secondary', 'Building config', \
             'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',] + list(sift_out)
-        output= []
-        for entry in self.output:
+        filtered_output= []
+        for entry in output:
             for line in entry:
                 if not line.strip() or any(str(n) in line for n in dont_print):
                     continue
-                output.append(line)
-        return output
+                filtered_output.append(line)
+        return filtered_output
 
 
 def _underline(input, line_char="-"):
