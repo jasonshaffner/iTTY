@@ -11,6 +11,7 @@ setup(
 		'scripts/run_commands',
 		'scripts/check_version',
                 'scripts/check_contact',
+		'scripts/check_hostname',
 		'scripts/check_location',
 		'scripts/check_syslog',
 		'scripts/check_trap_collectors',
