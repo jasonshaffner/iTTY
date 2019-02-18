@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+
+import getpass
+import sys
+import re
+import resource
+import asyncio
+import multiprocessing
+import time
+from functools import partial
+from multiprocessing import Manager
+from iTTY.utils import StringUtils
+from iTTY import iTTY, Extractor, CouldNotConnectError
+
+def parse_params():
+    username = ''
+    password = ''
+    device_list = []
+    greppable_output = False
+    if len(sys.argv) > 1:
+        for i, arg in enumerate(sys.argv):
+            if arg == '-u':
+                username = sys.argv[i+1]
+            elif arg == '-p':
+                password = sys.argv[i+1]
+            elif arg == '-d':
+                device_list = sys.argv[i+1]
+    if not username:
+        username = input("Username: ")
+    if not password:
+        password = getpass.getpass()
+    if not device_list:
+        device_list = input("Device list file: ")
+    return (username, password, device_list)
+
+def get_devices(devicelist):
+    devices = [[]]
+    with open(devicelist, 'r') as hosts:
+        hostnames = list(hosts)
+        dev_count = len(hostnames)
+        if dev_count > int(ULIMIT/CPUS):
+            group_count = int(dev_count/int(ULIMIT/CPUS))
+        else:
+            group_count = CPUS
+        for index, host in enumerate(hostnames):
+            if index % group_count >= len(devices):
+                devices.append([])
+            devices[index % group_count].append(host.strip())
+    return devices, dev_count
+
+def compile_data(devices, report, failed):
+    loops = []
+    loop = asyncio.new_event_loop()
+    for device in devices:
+        task = loop.create_task(extract_data(device, report, failed))
+        loops.append(task)
+    if loops:
+        loop.run_until_complete(asyncio.wait(loops))
+
+async def extract_data(device, report, failed):
+    interfaces = {}
+    try:
+        async with iTTY(host=device, username=USERNAME, password=PASSWORD, timeout=10) as tty:
+            interfaces = await Extractor.extract_interface_v4_addresses(tty)
+    except CouldNotConnectError:
+        failed.append(device)
+        return
+    if not interfaces:
+        failed.append(device)
+        return
+    report.append({device: interfaces})
+
+if __name__ == '__main__':
+    USERNAME, PASSWORD, DEVICELIST = parse_params()
+    if not all((USERNAME, PASSWORD, DEVICELIST)):
+        print('Need username, password, and devicelist to proceed')
+        exit()
+    CPUS = multiprocessing.cpu_count()
+    ULIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[0] * 2
+    DEVICES, DEV_COUNT = get_devices(DEVICELIST)
+    if not DEVICES:
+        print('Could not generate device list')
+        exit()
+    manager = multiprocessing.Manager()
+    report = manager.list()
+    failed = manager.list()
+    start = time.time()
+    with multiprocessing.Pool(processes=CPUS, maxtasksperchild=1) as pool:
+        pool.imap_unordered(partial(compile_data, report=report, failed=failed), DEVICES)
+        pool.close()
+        pool.join()
+    end = time.time()
+    print('\n\n', '-' * 50, '\n\n')
+    for device in report:
+        for address, interfaces in device.items():
+            longest = 0
+            print(address, '\n', '_' * 50, '\n\n')
+            for interface, v4 in interfaces.items():
+                longest = len(interface) if len(interface) > longest else longest
+            for interface, v4 in interfaces.items():
+                print('\t', interface, ' ' * (longest - len(interface)), '\t', v4)
+            print('\n\n')
+    print('\n\nFailed to get interface info from the below devices:')
+    for line in failed:
+        print('\t', line)
+    print('\n\n\n', f'Successfully gathered interface info from {DEV_COUNT - len(failed)} out of {DEV_COUNT} devices in {int((end - start)/60)} minutes and {int(end - start) % 60} seconds', '\n')

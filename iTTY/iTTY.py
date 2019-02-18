@@ -188,7 +188,7 @@ class iTTY:
         elif re.search('CPU.*#', str(prompt)):
             self.os = 2  #XR
         elif re.search('.*#', str(prompt)) and not re.search('@', str(prompt)):
-            self.set_commands(['show version', 'q'])
+            self.set_commands(['show version'])
             try:
                 output = await self.async_run_commands(3)
             except:
@@ -206,7 +206,7 @@ class iTTY:
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
             self.os = 4  #JUNOS
         elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)) and not re.search('cli', str(prompt)):
-            self.set_commands(['show version', 'q'])
+            self.set_commands(['show version'])
             try:
                 output = await self.async_run_commands(3)
             except:
@@ -552,7 +552,14 @@ class iTTY:
             if command != self.password:
                 if command_header:
                     output.append(['\n' + _underline(command.decode()), ])
-                output.append(self.shell.recv(500000).strip().decode(errors="ignore").split('\n')[1:])
+                raw = self.shell.recv(500000).strip().decode(errors="ignore").split('\n')[1:]
+                if not (self.prompt.strip('#>') in raw[-1] or 'sername' in raw[-1] or 'assword' in raw[-1]):
+                    try:
+                        self.shell.send('q'.encode() + b'\r')
+                    except OSError:
+                        pass
+                    await asyncio.sleep(3)
+                output.append(raw)
         if done:
             self.logout()
         return output

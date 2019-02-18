@@ -1,6 +1,8 @@
 import re
 from . import iTTY
 
+ip_regex = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+
 async def extract_make(tty):
     """
     Extracts "make" of remote device
@@ -192,6 +194,20 @@ async def extract_acl(tty, acl_name):
         return await extract_arista_acl(tty, acl_name)
     #elif tty.os == 8:
     #    return await extract_a10_acl(tty, acl_name)
+
+async def extract_interface_v4_addresses(tty, interface=None):
+    """
+    Extracts interface v4 addresses of remote device
+    """
+    if tty.os == 1:
+        return await extract_alu_interface_v4_addresses(tty, interface)
+    elif tty.os in [2, 3, 7]:
+        return await extract_cisco_interface_v4_addresses(tty, interface)
+    elif tty.os == 4:
+        return await extract_junos_interface_v4_addresses(tty, interface)
+    elif tty.os == 5:
+        return await extract_asa_interface_v4_addresses(tty, interface)
+
 
 async def extract_alu_version(tty):
     """
@@ -747,9 +763,8 @@ async def extract_alu_syslog_server(tty):
     """
     tty.set_commands(['admin display-config | match syslog context children | match address'])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_xr_syslog_server(tty):
     """
@@ -757,9 +772,8 @@ async def extract_xr_syslog_server(tty):
     """
     tty.set_commands(["show run formal | utility egrep '^logging [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'"])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_ios_syslog_server(tty):
     """
@@ -767,9 +781,8 @@ async def extract_ios_syslog_server(tty):
     """
     tty.set_commands(["show run | in logging"])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_junos_syslog_server(tty):
     """
@@ -777,9 +790,8 @@ async def extract_junos_syslog_server(tty):
     """
     tty.set_commands(['set cli screen-length 0', "show configuration | display set | match syslog\ host"])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_asa_syslog_server(tty):
     """
@@ -787,9 +799,8 @@ async def extract_asa_syslog_server(tty):
     """
     tty.set_commands(['show run | in logging host'])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_f5_syslog_server(tty):
     """
@@ -797,9 +808,8 @@ async def extract_f5_syslog_server(tty):
     """
     tty.set_commands(['show running-config sys syslog'])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_arista_syslog_server(tty):
     """
@@ -807,9 +817,8 @@ async def extract_arista_syslog_server(tty):
     """
     tty.set_commands(["show run | in logging host"])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_a10_syslog_server(tty):
     """
@@ -817,9 +826,8 @@ async def extract_a10_syslog_server(tty):
     """
     tty.set_commands(["show run | in logging host"])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_junos_series(tty):
     tty.set_commands(['set cli screen-length 0', 'show version local | match Model'])
@@ -907,58 +915,50 @@ async def extract_arista_series(tty):
 async def extract_alu_trap_collector(tty):
     tty.set_commands(['admin display config | match trap-target'])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_xr_trap_collector(tty):
     tty.set_commands(['show run formal | in host.*traps'])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_ios_trap_collector(tty):
     tty.set_commands(['show run | in snmp-server.*host'])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_junos_trap_collector(tty):
     tty.set_commands(['show configuration | display set | match trap.*targets'])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_asa_trap_collector(tty):
     tty.set_commands(['show run | in snmp.*host'])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line) and not re.search('poll', line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line) and not re.search('poll', line)])
 
 async def extract_f5_trap_collector(tty):
     tty.set_commands(['show running-config sys snmp traps | grep host'])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_arista_trap_collector(tty):
     tty.set_commands(['show run | in snmp-server.*host'])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_a10_trap_collector(tty):
     tty.set_commands(['show run | in snmp-server.*host'])
     output = await tty.async_run_commands(10)
-    ip = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
     if output:
-        return set([ip.search(line).group(0) for out in output for line in out if ip.search(line)])
+        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_alu_acl(tty, acl_name):
     tty.set_commands([f'admin display-config | match "prefix-list \"{acl_name}\"" context all'])
@@ -989,3 +989,69 @@ async def extract_arista_acl(tty, acl_name):
     output = await tty.async_run_commands(10)
     if output:
         return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
+
+
+async def extract_alu_interface_v4_addresses(tty, interface):
+    command = 'show router interface ipv4'
+    if interface:
+        command = " ".join([command, interface])
+    tty.set_commands(['environment no more', command])
+    output = await tty.async_run_commands(10)
+    interfaces = {}
+    if output:
+        if interface:
+            return {interface: ip_regex.search(out[index + 1]) for out in output for index, line in enumerate(out) if re.match(interface, line)}
+        else:
+            return {out[index - 1].split()[0]: ip_regex.search(line).group(0) for out in output for index, line in enumerate(out) if ip_regex.search(line)}
+
+async def extract_cisco_interface_v4_addresses(tty, interface):
+    command = 'show ipv4 interface brief' if tty.os == 2 else 'show ip interface brief'
+    if interface:
+        command = " ".join([command, interface])
+    tty.set_commands(['terminal length 0', command])
+    output = await tty.async_run_commands(10)
+    if output:
+        if interface:
+            return {interface: ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line) and re.match(interface, line)}
+        else:
+            return {line.split()[0]: ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)}
+
+async def extract_junos_interface_v4_addresses(tty, interface):
+    command = 'show interfaces terse | match "inet * [0-9]" | except "^em|^bme|^jsrv"'
+    if interface:
+        command = " ".join((command.split('|')[0], interface, "|", command.split('|')[1:]))
+    tty.set_commands(['set cli screen-length 0', command])
+    output = await tty.async_run_commands(10)
+    if output:
+        if interface:
+            return {interface: ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line) and re.match(interface, line)}
+        else:
+            return {line.split()[0]: ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)}
+
+async def extract_asa_interface_v4_addresses(tty, interface):
+    command = 'show interface ip brief'
+    if interface:
+        command = " ".join((command, 'include |', interface))
+    tty.set_commands(['enable', tty.password, 'terminal pager 0', command])
+    output = await tty.async_run_commands(10)
+    phys_interfaces = {}
+    if output:
+        if interface:
+            return {interface: ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line) and re.match(interface, line)}
+        else:
+            phys_interfaces = {line.split()[0]: ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)}
+    commands = []
+    if phys_interfaces:
+        commands = (f'show interface {interface} | include {interface}' for interface, _ in phys_interfaces.items())
+    if commands:
+        tty.set_commands(commands)
+        output = await tty.async_run_commands(5)
+        if output:
+            return {line.split('"')[1]: phys_interfaces.get(line.split()[1]) for out in output for line in out if '"' in line and line.split()[1] in phys_interfaces.keys()}
+
+
+async def extract_f5_interface_v4_addresses(tty, interface):
+    raise NotImplementedError
+
+async def extract_a10_interface_v4_addresses(tty, interface):
+    raise NotImplementedError
