@@ -527,26 +527,21 @@ async def extract_cisco_hostname(tty):
     """
     Extracts hostname of remote cisco (and arista EOS) device
     """
-    print(f'Extracting Cisco Hostname for: {tty.host}')
     commands = ['show run | in hostname', 'show run | in domain name', 'show run | in domain-name']
     if tty.os == 5:
         commands = ['enable', tty.password, commands[:]] 
     tty.set_commands(commands)
     output = await tty.async_run_commands(10)
     if output:
-        print(output)
         hostname = ''
         domain = ''
         for out in output:
             for line in out:
-                print(line)
                 if not re.search('show|logging', line) and re.search('hostname', line):
                     hostname = line.split()[-1]
                 elif not re.search('show|logging', line) and re.search('domain', line):
                     domain = line.split()[-1]
-                print(hostname, domain)
                 if hostname and domain:
-                    print(f'returning: {".".join((hostname, domain))}')
                     return '.'.join((hostname, domain))
     if tty.get_os() == 2:
         return tty.prompt.split(":")[1].strip("#")
