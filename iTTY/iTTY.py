@@ -553,8 +553,7 @@ class iTTY:
                 if command_header:
                     output.append(['\n' + _underline(command.decode()), ])
                 raw = self.shell.recv(500000).strip().decode(errors="ignore").split('\n')[1:]
-                print(raw)
-                if not (self.prompt.strip('#>') in raw[-1] or 'sername' in raw[-1] or 'assword' in raw[-1]):
+                if raw and not (self.prompt.strip('#>') in raw[-1] or 'sername' in raw[-1] or 'assword' in raw[-1]):
                     try:
                         self.shell.send('q'.encode() + b'\r')
                     except OSError:
