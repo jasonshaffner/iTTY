@@ -529,7 +529,7 @@ async def extract_cisco_hostname(tty):
     """
     commands = ['show run | in hostname', 'show run | in domain name', 'show run | in domain-name']
     if tty.os == 5:
-        commands = ['enable', tty.password, commands[:]] 
+        commands = ['enable', tty.password] + commands[:]
     tty.set_commands(commands)
     output = await tty.async_run_commands(10)
     if output:
