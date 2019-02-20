@@ -533,13 +533,13 @@ async def extract_cisco_hostname(tty):
     tty.set_commands(commands)
     output = await tty.async_run_commands(10)
     if output:
-        hostname = ''
-        domain = ''
+        hostname = None
+        domain = None
         for out in output:
             for line in out:
-                if not re.search('show|logging', line) and re.match('hostname', line.strip()):
+                if not hostname and not re.search('show|logging', line) and re.match('hostname', line.lstrip()):
                     hostname = line.split()[-1]
-                elif not re.search('show|logging', line) and re.match('domain', line.strip()):
+                elif not domain and not re.search('show|logging', line) and re.match('domain', line.lstrip()):
                     domain = line.split()[-1]
                 if hostname and domain:
                     return '.'.join((hostname, domain))

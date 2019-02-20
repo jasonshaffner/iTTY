@@ -15,6 +15,7 @@ from paramiko.ssh_exception import SSHException, NoValidConnectionsError, Authen
 
 paramiko.util.log_to_file('/dev/null')
 warnings.simplefilter("ignore")
+ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
 
 class iTTY:
     """
@@ -553,13 +554,13 @@ class iTTY:
                 if command_header:
                     output.append(['\n' + _underline(command.decode()), ])
                 raw = self.shell.recv(500000).strip().decode(errors="ignore").split('\n')[1:]
+                output.append([ansi_escape.sub('', line) for line in raw])
                 if raw and not (self.prompt.strip('#>') in raw[-1] or 'sername' in raw[-1] or 'assword' in raw[-1]):
                     try:
                         self.shell.send('q'.encode() + b'\r')
                     except OSError:
                         pass
                     await asyncio.sleep(3)
-                output.append(raw)
         if done:
             self.logout()
         return output
@@ -603,7 +604,7 @@ class iTTY:
             if out and (str(command) != str(self.password) and str(command) != str(self.username)):
                 if command_header:
                     output.append([''.join(('\n', _underline(command))), ])
-                output.append(out.decode().split('\n')[1:])
+                output.append(out.split('\n')[1:])
         if done:
             self.logout()
         return output
@@ -635,7 +636,7 @@ class iTTY:
         try:
             _, match, output = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=command_delay))
             if match:
-                return output
+                return ansi_escape.sub('', output.decode())
         except (EOFError, ConnectionResetError):
             pass
 
