@@ -446,7 +446,7 @@ class iTTY:
             self.session.write(self.password + b'\r')
             match = await self._async_expect(prompt_regex, self.timeout)
             if match:
-                self.prompt = match.split(b'\n')[-1].strip().decode().lstrip('*')
+                self.prompt = match.split('\n')[-1].strip().lstrip('*')
             else:
                 raise CouldNotConnectError(self.host)
             await self.async_set_os(self.prompt)
