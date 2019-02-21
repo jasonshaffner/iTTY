@@ -898,13 +898,13 @@ async def extract_asa_series(tty):
     if output:
         for out in output:
             for line in out:
-                if re.search('Encryption hardware device', str(line)):
-                    try:
+                try:
+                    if re.search('Encryption hardware device', str(line)):
                         return line.split(':')[1].split()[1]
-                    except IndexError:
-                        return
-                elif re.search('DESCR', line):
-                    return line.split('DESCR:')[1].split()[0].strip('"')
+                    elif re.search('DESCR:', line):
+                        return line.split('DESCR:')[1].split()[0].strip('"')
+                except IndexError:
+                    print('extract_asa_series: IndexError: {line}')
 
 async def extract_arista_series(tty):
     tty.set_commands(['show version | in Arista'])
