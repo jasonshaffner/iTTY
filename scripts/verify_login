@@ -8,7 +8,7 @@ import resource
 import asyncio
 import multiprocessing
 from functools import partial
-from iTTY import iTTY, CouldNotConnectError
+from iTTY import iTTY, CouldNotConnectError, BrokenConnectionError
 
 """
 Attempts only to login to devices (first via ssh, then via telnet)

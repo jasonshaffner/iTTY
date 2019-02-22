@@ -11,7 +11,7 @@ import socket
 from functools import partial
 from multiprocessing import Manager
 from iTTY.utils import StringUtils
-from iTTY import iTTY, Extractor, CouldNotConnectError
+from iTTY import iTTY, Extractor, CouldNotConnectError, BrokenConnectionError
 
 def parse_params():
     username = ''
@@ -153,7 +153,7 @@ async def run_commands(device, report, failed):
                 print('No output from ', device)
                 failed.append(device)
                 return
-    except CouldNotConnectError:
+    except (CouldNotConnectError, BrokenConnectionError):
         print('Could not connect to', device)
         failed.append(device)
         return

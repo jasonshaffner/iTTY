@@ -10,7 +10,7 @@ import time
 from functools import partial
 from multiprocessing import Manager
 from iTTY.utils import StringUtils
-from iTTY import iTTY, Extractor, CouldNotConnectError
+from iTTY import iTTY, Extractor, CouldNotConnectError, BrokenConnectionError
 
 def parse_params():
     username = ''
@@ -62,7 +62,7 @@ async def extract_data(device, report, failed):
     try:
         async with iTTY(host=device, username=USERNAME, password=PASSWORD, timeout=10) as tty:
             contact = await Extractor.extract_contact(tty)
-    except CouldNotConnectError:
+    except (CouldNotConnectError, BrokenConnectionError):
         contact = ''
     if not contact:
         failed.append(device)
