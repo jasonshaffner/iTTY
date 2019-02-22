@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import re
 import getpass
 import time
 import resource
@@ -38,15 +39,19 @@ async def attempt_login(host, failed, ssh, telnet):
     host = host.strip()
     try:
         async with iTTY(host=host.strip(), username=USERNAME, password=PASSWORD, timeout=10) as tty:
-            if tty.shell:
-                print(f'{host} reachable via SSH')
+            login_method = tty.telnet_or_ssh()
+            print(f'{host} reachable via {login_method}')
+            if login_method == 'SSH':
                 ssh.value += 1
-            elif tty.session:
-                print(f'{host} reachable via TELNET')
+            else:
                 telnet.value += 1
-    except CouldNotConnectError:
-        print(f'{host} not reachable')
+    except CouldNotConnectError as e:
         failed.value += 1
+        for exception in e.exceptions.values():
+            if re.search('Authentication', exception):
+                print(f'authentication failed for {host}')
+                return
+        print(f'could not connect to {host}')
 
 def get_devices(devicelist):
     devices = [[]]

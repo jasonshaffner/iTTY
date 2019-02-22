@@ -15,7 +15,7 @@ from paramiko.ssh_exception import SSHException, NoValidConnectionsError, Authen
 
 paramiko.util.log_to_file('/dev/null')
 warnings.simplefilter("ignore")
-ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
+ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]|0xf2')
 
 class iTTY:
     """
@@ -304,8 +304,11 @@ class iTTY:
         self.verify_login_parameters()
         try:
             return await self.async_secure_login()
-        except CouldNotConnectError:
-            return await self.async_unsecure_login()
+        except CouldNotConnectError as e:
+            try:
+                return await self.async_unsecure_login()
+            except CouldNotConnectError as e2:
+                raise CouldNotConnectError(e, e2, host=self.host)
 
 
     def secure_login(self, **kwargs):
@@ -331,10 +334,10 @@ class iTTY:
             self.prompt = self.shell.recv(10000).decode().split('\n')[-1].strip().lstrip('*')
             self.set_os(self.prompt)
             return self.os
-        except (SSHException, NoValidConnectionsError, AuthenticationException, ValueError, EOFError, socket.error, socket.timeout):
+        except (SSHException, NoValidConnectionsError, AuthenticationException, ValueError, EOFError, socket.error, socket.timeout) as e:
             self.session = None
             self.shell = None
-            raise CouldNotConnectError(self.host)
+            raise CouldNotConnectError({'ssh': str(e)})
 
     async def async_secure_login(self, **kwargs):
         """
@@ -370,10 +373,10 @@ class iTTY:
                                     allow_agent=False,\
                                     timeout=self.timeout))
             self.shell = yield from loop.run_in_executor(None, self.session.invoke_shell)
-        except (SSHException, NoValidConnectionsError, AuthenticationException, ValueError, EOFError, socket.error, socket.timeout):
+        except (SSHException, NoValidConnectionsError, AuthenticationException, socket.error, socket.timeout) as e:
             self.session = None
             self.shell = None
-            raise CouldNotConnectError(self.host)
+            raise CouldNotConnectError({'ssh': str(e)})
 
 
     @asyncio.coroutine
@@ -415,9 +418,9 @@ class iTTY:
             self.prompt = previous_text.split(b'\n')[-1].strip().decode().lstrip('*')
             self.set_os(self.prompt)
             return self.os
-        except (CouldNotConnectError, ConnectionResetError, BrokenPipeError, ConnectionRefusedError, EOFError, OSError, socket.timeout):
+        except (CouldNotConnectError, ConnectionResetError, BrokenPipeError, ConnectionRefusedError, EOFError, OSError, socket.timeout) as e:
             self.session = None
-            raise CouldNotConnectError(self.host)
+            raise CouldNotConnectError({'telnet': str(e)})
 
 
     async def async_unsecure_login(self, **kwargs):
@@ -436,24 +439,22 @@ class iTTY:
         prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
         try:
             await self._async_telnet_login()
-            if not self.session:
-                raise CouldNotConnectError(self.host)
             if not await self._async_expect(login_regex, self.timeout):
-                raise CouldNotConnectError(self.host)
+                raise CouldNotConnectError({'telnet': 'host did not prompt for username'})
             self.session.write(self.username.encode() + b'\r')
             if not self._async_expect(b'assword', self.timeout):
-                raise CouldNotConnectError(self.host)
+                raise CouldNotConnectError({'telnet': 'host did not prompt for password'})
             self.session.write(self.password + b'\r')
             match = await self._async_expect(prompt_regex, self.timeout)
             if match:
                 self.prompt = match.split('\n')[-1].strip().lstrip('*')
             else:
-                raise CouldNotConnectError(self.host)
+                raise CouldNotConnectError({'telnet': 'Authentication failed'})
             await self.async_set_os(self.prompt)
             return self.os
-        except (ConnectionResetError, CouldNotConnectError, BrokenPipeError, socket.timeout):
+        except (ConnectionResetError, BrokenPipeError, socket.timeout, BrokenConnectionError) as e:
             self.session = None
-            raise CouldNotConnectError(self.host)
+            raise CouldNotConnectError({'telnet': str(e)})
 
     @asyncio.coroutine
     def _async_telnet_login(self):
@@ -463,8 +464,8 @@ class iTTY:
         loop = asyncio.get_event_loop()
         try:
             self.session = yield from loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
-        except (ConnectionRefusedError, OSError, socket.timeout, BrokenPipeError, EOFError):
-            raise CouldNotConnectError(self.host)
+        except (ConnectionRefusedError, OSError, socket.timeout, BrokenPipeError, EOFError, BrokenConnectionError) as e:
+            raise CouldNotConnectError({'telnet': str(e)})
 
     def telnet_or_ssh(self):
         """
@@ -547,8 +548,8 @@ class iTTY:
                     return
             try:
                 self.shell.send(command.strip() + b'\r')
-            except OSError:
-                return
+            except OSError as e:
+                raise BrokenConnectionError(self.host, e)
             await asyncio.sleep(command_delay)
             if command != self.password:
                 if command_header:
@@ -617,8 +618,8 @@ class iTTY:
             await self._async_expect(command_delay=command_delay)
             self.session.write(command.strip().encode() + b'\r')
             return await self._async_expect(command_delay=command_delay)
-        except (BrokenPipeError, ConnectionResetError):
-            pass
+        except (BrokenPipeError, ConnectionResetError) as e:
+            raise BrokenConnectionError(self.host, e)
 
 
     @asyncio.coroutine
@@ -637,8 +638,8 @@ class iTTY:
             _, match, output = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=command_delay))
             if match:
                 return ansi_escape.sub('', output.decode())
-        except (EOFError, ConnectionResetError):
-            pass
+        except (EOFError, ConnectionResetError) as e:
+            raise BrokenConnectionError(self.host, e)
 
     def logout(self):
         """
@@ -670,6 +671,75 @@ class iTTY:
         return filtered_output
 
 
+
+class CouldNotConnectError(Exception):
+    """
+    Exception that is raised when unable to connect to a remote device
+    """
+    def __init__(self, *source_exceptions, **kwargs):
+        self.host = kwargs.get('host')
+        if len(source_exceptions) == 1:
+            source_exceptions = source_exceptions[0]
+        if isinstance(source_exceptions, dict):
+            self.message = source_exceptions
+            self.exceptions = source_exceptions
+        else:
+            if isinstance(source_exceptions, (list, tuple, set)):
+                self.exceptions = dict()
+                exc = None
+                try:
+                    for exception in source_exceptions:
+                        exc = exception
+                        self.exceptions.update(exception.exceptions)
+                except TypeError as e:
+                    print('TypeError:', e, exc.exceptions)
+                except ValueError as e:
+                    print('ValueError:', e, exc.exceptions)
+            else:
+                self.exceptions = str(source_exceptions)
+            self.message = str(self.exceptions)\
+                    if not isinstance(self.exceptions, (list, tuple, set))\
+                    else ', '.join([str(exception.exceptions) for exception in self.exceptions])
+        super().__init__(self.message)
+
+    def __str__(self):
+        return str(self.as_dict())
+
+    def as_dict(self):
+        if self.host:
+            return {'CouldNotConnectError': {'host': self.host, 'exceptions': self.exceptions}}
+        else:
+            return {'CouldNotConnectError': {'exceptions': self.exceptions}}
+
+
+    def __repr__(self):
+        return f'CouldNotConnectError({self.message})'
+
+
+class BrokenConnectionError(Exception):
+    """
+    Exception that is raised when an established connection fails
+    """
+    def __init__(self, host, source_exception):
+        self.host = host
+        self.source_exception = source_exception
+        self.message = " ".join(('{ host:', host, '} {', str(source_exception), '}'))
+        super().__init__(self.message)
+
+    def __str__(self):
+        return self.message
+
+    def __repr__(self):
+        return f'BrokenConnectionError({self.host}, {self.source_exception})'
+
+
+class LoginParametersNotSpecifiedError(Exception):
+    """
+    Exception that is rasied when either username or password is not specified before login
+    """
+    pass
+
+
 def _underline(input, line_char="-"):
     """
     Format helper, makes lines under a string
@@ -682,15 +752,3 @@ def _make_line(count, line_char="-"):
     Format helper, makes lines
     """
     return line_char * int(count)
-
-class CouldNotConnectError(Exception):
-    """
-    Exception that is raised when unable to connect to a remote device
-    """
-    pass
-
-class LoginParametersNotSpecifiedError(Exception):
-    """
-    Exception that is rasied when either username or password is not specified before login
-    """
-    pass
