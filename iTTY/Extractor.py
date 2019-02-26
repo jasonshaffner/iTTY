@@ -227,6 +227,7 @@ async def extract_xr_version(tty):
     Extracts software version of remote cisco IOS-XR device
     """
     version = ''
+    sp = ''
     tty.set_commands(["show version brief | in XR"])
     output = await tty.async_run_commands(10)
     if output:
