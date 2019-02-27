@@ -373,7 +373,7 @@ class iTTY:
                                     allow_agent=False,\
                                     timeout=self.timeout))
             self.shell = yield from loop.run_in_executor(None, self.session.invoke_shell)
-        except (SSHException, NoValidConnectionsError, AuthenticationException, EOFError, socket.error, socket.timeout) as e:
+        except (SSHException, NoValidConnectionsError, AuthenticationException, EOFError, ValueError, socket.error, socket.timeout) as e:
             self.session = None
             self.shell = None
             raise CouldNotConnectError({'ssh': str(e)})
