@@ -15,7 +15,7 @@ from paramiko.ssh_exception import SSHException, NoValidConnectionsError, Authen
 
 paramiko.util.log_to_file('/dev/null')
 warnings.simplefilter("ignore")
-ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]|0xf2')
+ansi_escape = re.compile("|".join([r'\x1B\[[0-?]*[ -/]*[@-~]', r'0xf2']))
 
 class iTTY:
     """
