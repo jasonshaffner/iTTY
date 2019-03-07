@@ -564,9 +564,9 @@ async def extract_junos_hostname(tty):
         domain = ''
         for out in output:
             for line in out:
-                if not re.search('show', line) and re.search('host-name', line):
+                if not hostname and not re.search('show', line) and re.search('host-name', line):
                     hostname = line.split()[-1]
-                elif not re.search('show', line) and re.search('domain-name', line):
+                elif not domain and not re.search('show', line) and re.search('domain-name', line):
                     domain = line.split()[-1]
                 if hostname and domain:
                     return '.'.join((hostname, domain))
