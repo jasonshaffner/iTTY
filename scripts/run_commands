@@ -80,7 +80,7 @@ def gather_commands():
     asa = []
     try:
         with open('ASA', 'r') as f:
-            asa = ['enable', PASSWORD, 'terminal pager 0'] + list(f)[:]
+            asa = ['terminal pager 0'] + list(f)[:]
     except: pass
     f5 = []
     try:
