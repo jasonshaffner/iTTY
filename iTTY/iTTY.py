@@ -217,11 +217,19 @@ class iTTY:
             elif re.search(' A10 ', str(output)):
                 self.os = 8
             else:
-                self.os = 5  #ASA
-                if self.shell:
-                    self.prompt = "".join((self.prompt.strip()[0:-1], '#'))
-                elif self.session:
-                    self.prompt = "".join((self.prompt.strip()[0:-1], b'#'))
+                self.set_commands(['enable', self.password])
+                try:
+                    output = await self.async_run_commands(3)
+                except:
+                    return
+                if re.search('IOS', str(output)):
+                    self.os = 3
+                else:
+                    self.os = 5  #ASA
+                    if self.shell:
+                        self.prompt = "".join((self.prompt.strip()[0:-1], '#'))
+                    elif self.session:
+                        self.prompt = "".join((self.prompt.strip()[0:-1], b'#'))
         elif re.search(''.join((self.username, '@\(')), str(prompt)):
             self.os = 6 #Big IP Load balancer
         elif re.search('refresh \:', str(prompt)) or re.search('--:- / cli->', str(prompt)):

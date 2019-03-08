@@ -323,10 +323,7 @@ async def extract_asa_version(tty):
     """
     Extracts software version of remote cisco asa device
     """
-    if re.search('>', tty.prompt):
-        tty.set_commands(['enable', tty.password, 'show version | in Software Version', 'show version | in system:'])
-    else:
-        tty.set_commands(['show version | in Software Version', 'show version | in system:'])
+    tty.set_commands(['show version | in Software Version', 'show version | in system:'])
     output = await tty.async_run_commands(10)
     if output:
         for out in output:
@@ -450,10 +447,7 @@ async def extract_asa_model(tty):
     """
     Extracts model of remote cisco ASA device
     """
-    if re.search('>', tty.prompt):
-        tty.set_commands(['enable', tty.password, 'terminal pager 0', 'show version | in Hardware', 'show inventory | in PID'])
-    else:
-        tty.set_commands(['terminal pager 0', 'show version | in Hardware', 'show inventory | in PID'])
+    tty.set_commands(['terminal pager 0', 'show version | in Hardware', 'show inventory | in PID'])
     output = await tty.async_run_commands(10)
     if re.search('Hardware:', str(output)):
         for out in output:
@@ -529,8 +523,6 @@ async def extract_cisco_hostname(tty):
     Extracts hostname of remote cisco (and arista EOS) device
     """
     commands = ['show run | in hostname', 'show run | in domain name', 'show run | in domain-name']
-    if tty.os == 5:
-        commands = ['enable', tty.password] + commands[:]
     tty.set_commands(commands)
     output = await tty.async_run_commands(10)
     if output:
@@ -813,7 +805,7 @@ async def extract_asa_syslog_server(tty):
     """
     Extracts configured syslog servers of remote cisco asa device
     """
-    tty.set_commands(['show run | in logging host'])
+    tty.set_commands(['terminal pager 0', 'show run | in logging host'])
     output = await tty.async_run_commands(20)
     if output:
         syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
@@ -915,10 +907,7 @@ async def extract_xr_series(tty):
                     return series
 
 async def extract_asa_series(tty):
-    if re.search('>', tty.prompt):
-        tty.set_commands(['enable', tty.password, 'show version | in hardware', 'show inventory | in DESCR:'])
-    else:
-        tty.set_commands(['show version | in hardware', 'show inventory | in DESCR:'])
+    tty.set_commands(['show version | in hardware', 'show inventory | in DESCR:'])
     output = await tty.async_run_commands(10)
     if output:
         for out in output:
@@ -1060,7 +1049,7 @@ async def extract_asa_interface_v4_addresses(tty, interface):
     command = 'show interface ip brief'
     if interface:
         command = " ".join((command, 'include |', interface))
-    tty.set_commands(['enable', tty.password, 'terminal pager 0', command])
+    tty.set_commands(['terminal pager 0', command])
     output = await tty.async_run_commands(10)
     phys_interfaces = {}
     if output:
