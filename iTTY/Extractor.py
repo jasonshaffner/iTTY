@@ -768,43 +768,58 @@ async def extract_alu_syslog_server(tty):
     tty.set_commands(['admin display-config | match syslog context children | match address'])
     output = await tty.async_run_commands(10)
     if output:
-        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        if syslog_servers:
+            return syslog_servers
+    print(f'Could not extract ALU syslog server data from {tty.host}: {output}')
 
 async def extract_xr_syslog_server(tty):
     """
     Extracts configured syslog servers of remote cisco IOS-XR device
     """
     tty.set_commands(["show run formal | utility egrep '^logging [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'"])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(20)
     if output:
-        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        if syslog_servers:
+            return syslog_servers
+    print(f'Could not extract XR syslog server data from {tty.host}: {output}')
 
 async def extract_ios_syslog_server(tty):
     """
     Extracts configured syslog servers of remote cisco IOS device
     """
-    tty.set_commands(["show run | in logging"])
-    output = await tty.async_run_commands(10)
+    tty.set_commands(["terminal length 0", "show run | in logging"])
+    output = await tty.async_run_commands(20)
     if output:
-        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        syslog_servers =  set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        if syslog_servers:
+            return syslog_servers
+    print(f'Could not extract IOS syslog server data from {tty.host}: {output}')
 
 async def extract_junos_syslog_server(tty):
     """
     Extracts configured syslog servers of remote juniper device
     """
     tty.set_commands(['set cli screen-length 0', "show configuration | display set | match syslog\ host"])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(20)
     if output:
-        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        if syslog_servers:
+            return syslog_servers
+    print(f'Could not extract JUNOS syslog server data from {tty.host}: {output}')
 
 async def extract_asa_syslog_server(tty):
     """
     Extracts configured syslog servers of remote cisco asa device
     """
     tty.set_commands(['show run | in logging host'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(20)
     if output:
-        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        if syslog_servers:
+            return syslog_servers
+    print(f'Could not extract ASA syslog server data from {tty.host}: {output}')
 
 async def extract_f5_syslog_server(tty):
     """
@@ -813,7 +828,10 @@ async def extract_f5_syslog_server(tty):
     tty.set_commands(['show running-config sys syslog'])
     output = await tty.async_run_commands(10)
     if output:
-        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        if syslog_servers:
+            return syslog_servers
+    print(f'Could not extract f5 syslog server data from {tty.host}: {output}')
 
 async def extract_arista_syslog_server(tty):
     """
@@ -822,7 +840,10 @@ async def extract_arista_syslog_server(tty):
     tty.set_commands(["show run | in logging host"])
     output = await tty.async_run_commands(10)
     if output:
-        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        if syslog_servers:
+            return syslog_servers
+    print(f'Could not extract EOS syslog server data from {tty.host}: {output}')
 
 async def extract_a10_syslog_server(tty):
     """
@@ -831,7 +852,10 @@ async def extract_a10_syslog_server(tty):
     tty.set_commands(["show run | in logging host"])
     output = await tty.async_run_commands(10)
     if output:
-        return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        if syslog_servers:
+            return syslog_servers
+    print(f'Could not extract A10 syslog server data from {tty.host}: {output}')
 
 async def extract_junos_series(tty):
     tty.set_commands(['set cli screen-length 0', 'show version local | match Model'])
@@ -1059,3 +1083,11 @@ async def extract_f5_interface_v4_addresses(tty, interface):
 
 async def extract_a10_interface_v4_addresses(tty, interface):
     raise NotImplementedError
+
+async def extract_xr_chassis_configuration(tty):
+    command = 'admin show controllers fabric plane all detail | in UP'
+    regex = re.compile('MC\|SC\|B2B')
+    tty.set_commands([command])
+    output = await tty.async_run_commands(10)
+    if output:
+        return next((regex.search(line).group(0) for out in output for line in out if regex.search(line)), None)
