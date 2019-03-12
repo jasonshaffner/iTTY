@@ -17,6 +17,7 @@ paramiko.util.log_to_file('/dev/null')
 warnings.simplefilter("ignore")
 ansi_escape = re.compile("|".join([r'\x1B\[[0-?]*[ -/]*[@-~]', r'0xf2']))
 
+
 class iTTY:
     """
     iTTY is a class to ensure easy logging in and running of commands on multiple platforms.
@@ -25,6 +26,17 @@ class iTTY:
     we have multiple ways to log in. We first attempt secure (ssh) logins, then use telnet as a backup.
     This has been tested to work with Cisco IOS-XR, Cisco IOS, Cisco ASA, Juniper JUNOS, and Alcatel/Nokia TiMOS.
     """
+
+    ALU = 1
+    XR = 2
+    IOS = 3
+    JUNOS = 4
+    ASA = 5
+    F5 = 6
+    EOS = 7
+    A10 = 8
+    AVOCENT = 9
+    NIAGARA = 10
 
 
     def __init__(self, **kwargs):
@@ -137,9 +149,9 @@ class iTTY:
         Takes prompt as arg, returns digit signifying type of OS
         """
         if re.search('[A-B]:.*#', str(prompt)):
-            self.os = 1 #ALU
+            self.os = ALU
         elif re.search('CPU.*#', str(prompt)):
-            self.os = 2  #XR
+            self.os = XR
         elif re.search('.*#', str(prompt)) and not re.search('@', str(prompt)):
             self.set_commands(['show version', '.'])
             try:
@@ -147,17 +159,17 @@ class iTTY:
             except:
                 return
             if re.search(' A10 ', str(output)):
-                self.os = 8 #A10
+                self.os = A10
             elif re.search('Arista', str(output)):
-                self.os = 7
+                self.os = EOS
             elif re.search('Invalid', str(output)):
-                self.os = 10 #Niagara
+                self.os = NIAGARA
             elif re.search('ACSW', str(output)):
-                self.os = 5
+                self.os = ASA
             else:
-                self.os = 3    #IOS
+                self.os = IOS
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
-            self.os = 4  #JUNOS
+            self.os = JUNOS
         elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)) and not re.search('cli', str(prompt)):
             self.set_commands(['show version', '.'])
             try:
@@ -165,19 +177,19 @@ class iTTY:
             except:
                 return
             if re.search('Arista', str(output)):
-                self.os = 7 #Arista
+                self.os = ARISTA
             elif re.search(' A10 ', str(output)):
-                self.os = 8
+                self.os = A10
             else:
-                self.os = 5  #ASA
+                self.os = ASA
                 if self.shell:
                     self.prompt = "".join((self.prompt.strip()[0:-1], '#'))
                 elif self.session:
                     self.prompt = "".join((self.prompt.strip()[0:-1], b'#'))
         elif re.search(''.join((self.username, '@\(')), str(prompt)):
-            self.os = 6 #Big IP Load balancer
+            self.os = F5
         elif re.search('refresh \:', str(prompt)) or re.search('--:- / cli->', str(prompt)):
-            self.os = 9 #Avocent
+            self.os = AVOCENT
         return self.os
 
     async def async_set_os(self, prompt):
@@ -185,9 +197,9 @@ class iTTY:
         Takes prompt as arg, returns digit signifying type of OS
         """
         if re.search('[A-B]:.*#', str(prompt)):
-            self.os = 1 #ALU
+            self.os = self.ALU
         elif re.search('CPU.*#', str(prompt)):
-            self.os = 2  #XR
+            self.os = self.XR
         elif re.search('.*#', str(prompt)) and not re.search('@', str(prompt)):
             self.set_commands(['show version'])
             try:
@@ -195,17 +207,17 @@ class iTTY:
             except:
                 return
             if re.search(' A10 ', str(output)):
-                self.os = 8 #A10
+                self.os = self.A10
             elif re.search('Arista', str(output)):
-                self.os = 7 #Arista
+                self.os = self.EOS
             elif re.search('Invalid', str(output)):
-                self.os = 10 #Niagara
+                self.os = self.NIAGARA
             elif re.search('ACSW', str(output)):
-                self.os = 5
+                self.os = self.ASA
             else:
-                self.os = 3    #IOS
+                self.os = self.IOS
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
-            self.os = 4  #JUNOS
+            self.os = self.JUNOS
         elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)) and not re.search('cli', str(prompt)):
             self.set_commands(['show version'])
             try:
@@ -213,27 +225,27 @@ class iTTY:
             except:
                 return
             if re.search('Arista', str(output)):
-                self.os = 7 #Arista
+                self.os = self.EOS
             elif re.search(' A10 ', str(output)):
-                self.os = 8
+                self.os = self.A10
             else:
                 self.set_commands(['enable', self.password])
                 try:
-                    output = await self.async_run_commands(3)
+                    await self.async_run_commands(3)
                 except:
                     return
-                if re.search('IOS', str(output)):
-                    self.os = 3
+                if re.search(r'(?:^| |\t)IOS(?:$| |\t)', str(output)):
+                    self.os = self.IOS
                 else:
-                    self.os = 5  #ASA
+                    self.os = self.ASA
                     if self.shell:
                         self.prompt = "".join((self.prompt.strip()[0:-1], '#'))
                     elif self.session:
                         self.prompt = "".join((self.prompt.strip()[0:-1], b'#'))
         elif re.search(''.join((self.username, '@\(')), str(prompt)):
-            self.os = 6 #Big IP Load balancer
+            self.os = self.F5
         elif re.search('refresh \:', str(prompt)) or re.search('--:- / cli->', str(prompt)):
-            self.os = 9 #Avocent
+            self.os = self.AVOCENT
         return self.os
 
 
@@ -439,7 +451,6 @@ class iTTY:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
-        loop = asyncio.get_event_loop()
         self.verify_login_parameters()
         if not isinstance(self.password, bytes):
             self.password = self.password.encode()
@@ -608,7 +619,8 @@ class iTTY:
         Runs commands asynchronously when logged in via Telnet, returns output
         """
         output = []
-        for command in self.commands:
+        while self.commands:
+            command = self.commands.pop(0)
             out = await self._async_run_unsec_command(command, command_delay)
             if out and (str(command) != str(self.password) and str(command) != str(self.username)):
                 if command_header:
@@ -644,8 +656,9 @@ class iTTY:
             expectation = re.compile(expectation)
         try:
             _, match, output = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=command_delay))
-            if match:
-                return ansi_escape.sub('', output.decode())
+            if not match:
+                self._async_run_unsec_command('q', 1)
+            return ansi_escape.sub('', output.decode())
         except (EOFError, ConnectionResetError) as e:
             raise BrokenConnectionError(self.host, e)
 
