@@ -286,7 +286,7 @@ async def extract_ios_version(tty):
     """
     Extracts software version of remote cisco IOS device
     """
-    tty.set_commands(['show version'])
+    tty.set_commands(['terminal length 0', 'show version'])
     output = await tty.async_run_commands(10)
     if output:
         for out in output:
@@ -388,7 +388,7 @@ async def extract_xr_model(tty):
     """
     Extracts model of remote cisco IOS-XR device
     """
-    tty.set_commands(['show version brief | in "memory|hassis"'])
+    tty.set_commands(['terminal length 0', 'show version brief | in "memory|hassis"'])
     output = await tty.async_run_commands(10)
     if re.search('CRS', str(output)):
         return tty.sift_output(output, [tty.username, tty.password, tty.prompt])[0].split()[1]
@@ -522,7 +522,7 @@ async def extract_cisco_hostname(tty):
     """
     Extracts hostname of remote cisco (and arista EOS) device
     """
-    commands = ['show run | in hostname', 'show run | in domain name', 'show run | in domain-name']
+    commands = ['terminal length 0', 'show run | in hostname', 'show run | in domain name', 'show run | in domain-name']
     tty.set_commands(commands)
     output = await tty.async_run_commands(10)
     if output:
@@ -699,7 +699,7 @@ async def extract_cisco_location(tty):
     """
     Extracts location of remote cisco (and arista EOS) device
     """
-    tty.set_commands(['show run | in location'])
+    tty.set_commands(['terminal length 0', 'show run | in location'])
     output = await tty.async_run_commands(10)
     if output:
         for out in output:
@@ -859,13 +859,29 @@ async def extract_junos_series(tty):
                     return line.split()[-1].split('-')[0]
 
 async def extract_ios_series(tty):
+    print('GETTING IOS SERIES')
     tty.set_commands(['terminal length 0', 'show version'])
     output = await tty.async_run_commands(10)
     if output:
+        print(output)
         for out in output:
             for line in out:
                 if re.search('c7600', line):
                     return 'c7600'
+                elif re.search('s\d+_rp', line):
+                    match = re.search('s\d+_rp', line)
+                    print(f'CLI got {match}')
+                    tty.set_commands(['terminal length 0', 'show inventory'])
+                    out = await tty.async_run_commands(10)
+                    print('out:', out)
+                    if out:
+                        series_line = next((line for o in out for line in o if re.search('Chassis', line)), None)
+                        print('series_line:', series_line)
+                        if series_line:
+                            if re.search('6500', series_line):
+                                return 'c6500'
+                            else:
+                                print('unidentified series: {series_line}')
                 if re.search('Software', line)\
                     and not re.search('Nexus', line)\
                     and not re.search('Internetwork', line)\
