@@ -536,14 +536,8 @@ async def extract_cisco_hostname(tty):
                     domain = line.split()[-1]
                 if hostname and domain:
                     return '.'.join((hostname, domain))
-    if tty.get_os() == 2:
-        return tty.prompt.split(":")[1].strip("#")
-    elif tty.get_os() == 3:
-        return tty.prompt.strip('#')
-    elif tty.get_os() == 5:
-        return tty.prompt.split('/')[0].strip('#>')
-    elif tty.get_os() == 7:
-        return tty.prompt.strip("#>").split('(')[0]
+        if hostname and not domain:
+            return hostname
 
 async def extract_junos_hostname(tty):
     """
@@ -562,7 +556,8 @@ async def extract_junos_hostname(tty):
                     domain = line.split()[-1]
                 if hostname and domain:
                     return '.'.join((hostname, domain))
-    return tty.prompt.split("@")[1].strip('>')
+        if hostname and not domain:
+            return hostname
 
 async def extract_f5_hostname(tty):
     """
@@ -575,7 +570,6 @@ async def extract_f5_hostname(tty):
             for line in out:
                 if not re.search('list', line) and re.search('hostname', line):
                     return line.split()[-1]
-    return tty.prompt.split("@")[1].split('(')[1].strip(')')
 
 async def extract_a10_hostname(tty):
     """
@@ -590,7 +584,6 @@ async def extract_a10_hostname(tty):
                     if re.search('device', line):
                         return line.split()[1]
                     return line.split()[-1]
-    return tty.prompt.split('-')[0].strip('#>')
 
 async def extract_avocent_hostname(tty):
     """
