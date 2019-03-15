@@ -560,7 +560,7 @@ async def extract_junos_hostname(tty):
             for line in domain_lines:
                 if not domain or len(domain) > len(line.split()[-1]):
                     domain = line.split()[-1]
-        else:
+        elif domain_lines:
             domain = domain_lines[0].split()[-1]
         if hostname and domain:
             return '.'.join((hostname, domain))
