@@ -874,7 +874,6 @@ async def extract_ios_series(tty):
                 if series_line:
                     if re.search('6500', series_line):
                         return 'c6500'
-                    else:
         elif re.search('CAT3K', str(output)):
             return 'CAT3K'
         for out in output:
