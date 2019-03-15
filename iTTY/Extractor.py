@@ -548,15 +548,23 @@ async def extract_junos_hostname(tty):
     if output:
         hostname = ''
         domain = ''
-        for out in output:
-            for line in out:
-                if not hostname and not re.search('show', line) and re.search('host-name', line):
+        hostname_lines = [line for out in output for line in out if not re.search('show', line) and re.search('host-name', line)]
+        domain_lines = [line for out in output for line in out if not re.search('show', line) and re.search('domain-name', line)]
+        if len(hostname_lines) > 1:
+            for line in hostname_lines:
+                if not hostname or len(hostname) > len(line.split()[-1]):
                     hostname = line.split()[-1]
-                elif not domain and not re.search('show', line) and re.search('domain-name', line):
+        else:
+            hostname = hostname_lines[0].split()[-1]
+        if len(domain_lines) > 1:
+            for line in domain_lines:
+                if not domain or len(domain) > len(line.split()[-1]):
                     domain = line.split()[-1]
-                if hostname and domain:
-                    return '.'.join((hostname, domain))
-        if hostname and not domain:
+        else:
+            domain = domain_lines[0].split()[-1]
+        if hostname and domain:
+            return '.'.join((hostname, domain))
+        elif hostname and not domain:
             return hostname
 
 async def extract_f5_hostname(tty):
@@ -852,32 +860,29 @@ async def extract_junos_series(tty):
                     return line.split()[-1].split('-')[0]
 
 async def extract_ios_series(tty):
-    print('GETTING IOS SERIES')
     tty.set_commands(['terminal length 0', 'show version'])
     output = await tty.async_run_commands(10)
     if output:
-        print(output)
+        if re.search('c7600', str(output)):
+            return 'c7600'
+        elif re.search('s\d+_rp', str(output)):
+            match = re.search('s\d+_rp', line)
+            tty.set_commands(['terminal length 0', 'show inventory'])
+            out = await tty.async_run_commands(10)
+            if out:
+                series_line = next((line for o in out for line in o if re.search('Chassis', line)), None)
+                if series_line:
+                    if re.search('6500', series_line):
+                        return 'c6500'
+                    else:
+        elif re.search('CAT3K', str(output)):
+            return 'CAT3K'
         for out in output:
             for line in out:
-                if re.search('c7600', line):
-                    return 'c7600'
-                elif re.search('s\d+_rp', line):
-                    match = re.search('s\d+_rp', line)
-                    print(f'CLI got {match}')
-                    tty.set_commands(['terminal length 0', 'show inventory'])
-                    out = await tty.async_run_commands(10)
-                    print('out:', out)
-                    if out:
-                        series_line = next((line for o in out for line in o if re.search('Chassis', line)), None)
-                        print('series_line:', series_line)
-                        if series_line:
-                            if re.search('6500', series_line):
-                                return 'c6500'
-                            else:
-                                print('unidentified series: {series_line}')
                 if re.search('Software', line)\
                     and not re.search('Nexus', line)\
                     and not re.search('Internetwork', line)\
+                    and not re.search(r' XE ', line)\
                     and len(line.strip().split()) > 1:
                     try:
                         if re.search('Catalyst', line):
