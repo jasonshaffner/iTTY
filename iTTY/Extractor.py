@@ -866,7 +866,7 @@ async def extract_ios_series(tty):
         if re.search('c7600', str(output)):
             return 'c7600'
         elif re.search('s\d+_rp', str(output)):
-            match = re.search('s\d+_rp', line)
+            match = re.search('s\d+_rp', str(output))
             tty.set_commands(['terminal length 0', 'show inventory'])
             out = await tty.async_run_commands(10)
             if out:
