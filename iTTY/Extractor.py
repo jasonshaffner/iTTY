@@ -391,7 +391,10 @@ async def extract_xr_model(tty):
     tty.set_commands(['terminal length 0', 'show version brief | in "memory|hassis"'])
     output = await tty.async_run_commands(10)
     if re.search('CRS', str(output)):
-        return tty.sift_output(output, [tty.username, tty.password, tty.prompt])[0].split()[1]
+        try:
+            return tty.sift_output(output, [tty.username, tty.password, tty.prompt])[0].split()[1]
+        except IndexError as err:
+            print(f'extract_xr_model IndexError: {str(output)}: sifted: {tty.sift_output(output, [tty.username, tty.password, tty.prompt])}')
     elif re.search('ASR', str(output)):
         for out in output:
             for line in out:
