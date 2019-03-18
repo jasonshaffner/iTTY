@@ -89,6 +89,8 @@ async def extract_version(tty):
         return await extract_arista_version(tty)
     elif tty.os == 8:
         return await extract_a10_version(tty)
+    elif tty.os == 9:
+        return await extract_avocent_version(tty)
 
 async def extract_model(tty):
     """
@@ -110,6 +112,8 @@ async def extract_model(tty):
         return await extract_arista_model(tty)
     elif tty.os == 8:
         return await extract_a10_model(tty)
+    elif tty.os == 9:
+        return await extract_avocent_model(tty)
 
 async def extract_series(tty):
     """
@@ -370,6 +374,17 @@ async def extract_a10_version(tty):
                 if not re.search('show', line) and re.search('ersion', line):
                     return line.split('ersion')[1].split()[0].strip(',')
 
+async def extract_avocent_version(tty):
+    """
+    Extracts software version of remote avocent device
+    """
+    tty.set_commands(['show /system/information/'])
+    output = await tty.async_run_commands(10)
+    if output:
+        for out in output:
+            for line in out:
+                if not re.search('show', line) and re.search('firmware', line):
+                    return line.split()[1]
 
 
 async def extract_alu_model(tty):
@@ -514,6 +529,18 @@ async def extract_a10_model(tty):
             for line in out:
                 if not re.search('show', line) and re.search('Series', line):
                     return line.split()[-1]
+
+async def extract_avocent_model(tty):
+    """
+    Extracts model of remote avocent device
+    """
+    tty.set_commands(['show /system/information/'])
+    output = await tty.async_run_commands(10)
+    if output:
+        for out in output:
+            for line in out:
+                if not re.search('show', line) and re.search('type', line):
+                    return line.split()[1]
 
 async def extract_alu_hostname(tty):
     """
@@ -934,7 +961,7 @@ async def extract_asa_series(tty):
                     elif re.search('DESCR:', line):
                         return line.split('DESCR:')[1].split()[0].strip('"')
                 except IndexError:
-                    print('extract_asa_series: IndexError: {line}')
+                    print(f'extract_asa_series: IndexError: {line}')
 
 async def extract_arista_series(tty):
     tty.set_commands(['show version | in Arista'])
