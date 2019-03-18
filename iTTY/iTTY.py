@@ -218,7 +218,7 @@ class iTTY:
                 self.os = self.IOS
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
             self.os = self.JUNOS
-        elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)) and not re.search('cli', str(prompt)):
+        elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)) and not re.search('->', str(prompt)):
             self.set_commands(['show version'])
             try:
                 output = await self.async_run_commands(3)
@@ -246,6 +246,10 @@ class iTTY:
             self.os = self.F5
         elif re.search('refresh \:', str(prompt)) or re.search('--:- / cli->', str(prompt)):
             self.os = self.AVOCENT
+            if re.search('refresh \:', str(prompt)):
+                self.set_commands(['q'])
+                self.prompt = '--:- / cli->'
+                await self.async_run_commands(3)
         return self.os
 
 
