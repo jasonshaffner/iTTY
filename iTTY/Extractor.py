@@ -573,18 +573,23 @@ async def extract_junos_hostname(tty):
     """
     Extracts hostname of remote juniper device
     """
-    tty.set_commands(['set cli screen-length 0', 'show configuration | display set | match "host-name"', 'show configuration | display set | match domain-name'])
+    tty.set_commands(['set cli screen-length 0', 'show configuration | display set | match "host-name"', 'show configuration | display set | match "domain-name"'])
     output = await tty.async_run_commands(10)
+    node_names = []
     if output:
         hostname = ''
         domain = ''
         hostname_lines = [line for out in output for line in out if not re.search('show', line) and re.search('host-name', line)]
         domain_lines = [line for out in output for line in out if not re.search('show', line) and re.search('domain-name', line)]
         if len(hostname_lines) > 1:
-            for line in hostname_lines:
-                if not hostname or len(hostname) > len(line.split()[-1]):
-                    hostname = line.split()[-1]
-        else:
+            node_names = {re.search('node\d', line).group(0): line.split()[-1] for line in hostname_lines if re.search('node\d', line)}
+            hostname = [line.split()[-1] for line in hostname_lines if not re.search('node', line)]
+            if re.search('node\d', str(hostname_lines)):
+                for line in hostname_lines:
+                    if re.search('node\d', line):
+                        if not hostname or len(hostname) > len(line.split()[-1]):
+                            hostname = line.split()[-1]
+        elif hostname_lines:
             hostname = hostname_lines[0].split()[-1]
         if len(domain_lines) > 1:
             for line in domain_lines:
@@ -592,6 +597,13 @@ async def extract_junos_hostname(tty):
                     domain = line.split()[-1]
         elif domain_lines:
             domain = domain_lines[0].split()[-1]
+        if domain:
+            if hostname:
+                hostname = '.'.join((hostname, domain))
+            if node_names:
+                node_names = {key: ".".join((value, domain)) for key, value in node_names}
+            if hostname and node_names:
+                return
         if hostname and domain:
             return '.'.join((hostname, domain))
         elif hostname and not domain:
