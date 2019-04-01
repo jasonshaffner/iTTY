@@ -577,31 +577,23 @@ async def extract_junos_hostname(tty):
     output = await tty.async_run_commands(10)
     node_names = []
     if output:
-        hostname = ''
-        domain = ''
-        hostname_lines = [line for out in output for line in out if not re.search('show', line) and re.search('host-name', line)]
-        domain_lines = [line for out in output for line in out if not re.search('show', line) and re.search('domain-name', line)]
+        hostname = None
+        domain = None
+        hostname_lines = [line for out in output for line in out if not re.search('show|node', line) and re.search('host-name', line)]
         if len(hostname_lines) > 1:
-            #node_names = {re.search('node\d', line).group(0): line.split()[-1] for line in hostname_lines if re.search('node\d', line)}
-            hostname = [line.split()[-1] for line in hostname_lines if not re.search('node', line)][0]
+            hostname = next((line.split()[-1] for line in hostname_lines), None)
         elif hostname_lines:
             hostname = hostname_lines[0].split()[-1]
+        domain_lines = [line for out in output for line in out if not re.search('show', line) and re.search('domain-name', line)]
         if len(domain_lines) > 1:
             for line in domain_lines:
                 if not domain or len(domain) > len(line.split()[-1]):
                     domain = line.split()[-1]
         elif domain_lines:
             domain = domain_lines[0].split()[-1]
-        if domain:
-            if hostname:
+        if hostname:
+            if domain:
                 hostname = '.'.join((hostname, domain))
-            #if node_names:
-            #    node_names = {key: ".".join((value, domain)) for key, value in node_names}
-            if hostname and node_names:
-                return
-        if hostname and domain:
-            return '.'.join((hostname, domain))
-        elif hostname and not domain:
             return hostname
 
 async def extract_f5_hostname(tty):
