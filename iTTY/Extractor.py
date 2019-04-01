@@ -558,15 +558,21 @@ async def extract_cisco_hostname(tty):
     if output:
         hostname = None
         domain = None
-        for out in output:
-            for line in out:
-                if not hostname and not re.search('show|logging', line) and re.match('hostname', line.lstrip()):
-                    hostname = line.split()[-1]
-                elif not domain and not re.search('show|logging|server', line) and re.match('domain', line.lstrip()):
+        hostname_lines = [line for out in output for line in out if not re.search('show|logging', line) and re.match('hostname', line.lstrip())]
+        if len(hostname_lines) > 1:
+            hostname = next((line.split()[-1] for line in hostname_lines), None)
+        elif hostname_lines:
+            hostname = hostname_lines[0].split()[-1]
+        domain_lines = [line for out in output for line in out if not re.search('show|logging|server', line) and re.search('domain.*name', line)]
+        if len(domain_lines) > 1:
+            for line in domain_lines:
+                if not domain or len(domain) > len(line.split()[-1]):
                     domain = line.split()[-1]
-                if hostname and domain:
-                    return '.'.join((hostname, domain))
-        if hostname and not domain:
+        elif domain_lines:
+            domain = domain_lines[0].split()[-1]
+        if hostname:
+            if domain:
+                return '.'.join((hostname, domain))
             return hostname
 
 async def extract_junos_hostname(tty):
