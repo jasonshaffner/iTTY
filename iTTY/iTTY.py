@@ -662,7 +662,7 @@ class iTTY:
             _, match, output = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=command_delay))
             if not match:
                 self._async_run_unsec_command('q', 1)
-            return ansi_escape.sub('', output.decode())
+            return ansi_escape.sub('', output.decode(errors='ignore'))
         except (EOFError, ConnectionResetError) as e:
             raise BrokenConnectionError(self.host, e)
 

@@ -820,7 +820,7 @@ async def extract_ios_syslog_server(tty):
     tty.set_commands(["terminal length 0", "show run | in logging"])
     output = await tty.async_run_commands(20)
     if output:
-        syslog_servers =  set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
+        syslog_servers =  set([ip_regex.search(line).group(0) for out in output for line in out if re.search('logging', line) and ip_regex.search(line)])
         if syslog_servers:
             return syslog_servers
     print(f'Could not extract IOS syslog server data from {tty.host}: {output}')
