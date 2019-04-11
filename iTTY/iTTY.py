@@ -146,50 +146,62 @@ class iTTY:
 
     def set_os(self, prompt):
         """
-        Takes prompt as arg, returns digit signifying type of OS
+        Takes prompt as arg, returns integer signifying type of OS
         """
         if re.search('[A-B]:.*#', str(prompt)):
-            self.os = ALU
+            self.os = self.ALU
         elif re.search('CPU.*#', str(prompt)):
-            self.os = XR
+            self.os = self.XR
         elif re.search('.*#', str(prompt)) and not re.search('@', str(prompt)):
-            self.set_commands(['show version', '.'])
+            self.set_commands(['show version'])
             try:
                 output = self.run_commands(3)
-            except:
-                return
+            except BrokenConnectionError:
+                raise
             if re.search(' A10 ', str(output)):
-                self.os = A10
+                self.os = self.A10
             elif re.search('Arista', str(output)):
-                self.os = EOS
+                self.os = self.EOS
             elif re.search('Invalid', str(output)):
-                self.os = NIAGARA
+                self.os = self.NIAGARA
             elif re.search('ACSW', str(output)):
-                self.os = ASA
+                self.os = self.ASA
             else:
-                self.os = IOS
+                self.os = self.IOS
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
-            self.os = JUNOS
-        elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)) and not re.search('cli', str(prompt)):
-            self.set_commands(['show version', '.'])
+            self.os = self.JUNOS
+        elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)) and not re.search('->', str(prompt)):
+            self.set_commands(['show version'])
             try:
                 output = self.run_commands(3)
             except:
                 return
             if re.search('Arista', str(output)):
-                self.os = ARISTA
+                self.os = self.EOS
             elif re.search(' A10 ', str(output)):
-                self.os = A10
+                self.os = self.A10
             else:
-                self.os = ASA
-                if self.shell:
-                    self.prompt = "".join((self.prompt.strip()[0:-1], '#'))
-                elif self.session:
-                    self.prompt = "".join((self.prompt.strip()[0:-1], b'#'))
+                self.set_commands(['enable', self.password])
+                try:
+                    self.run_commands(3)
+                except BrokenConnectionError:
+                    raise
+                if re.search(r'(?:^| |\t)IOS(?:$| |\t)', str(output)):
+                    self.os = self.IOS
+                else:
+                    self.os = self.ASA
+                    if self.shell:
+                        self.prompt = "".join((self.prompt.strip()[0:-1], '#'))
+                    elif self.session:
+                        self.prompt = "".join((self.prompt.strip()[0:-1], b'#'))
         elif re.search(''.join((self.username, '@\(')), str(prompt)):
-            self.os = F5
+            self.os = self.F5
         elif re.search('refresh \:', str(prompt)) or re.search('--:- / cli->', str(prompt)):
-            self.os = AVOCENT
+            self.os = self.AVOCENT
+            if re.search('refresh \:', str(prompt)):
+                self.set_commands(['q'])
+                self.prompt = '--:- / cli->'
+                self.run_commands(3)
         return self.os
 
     async def async_set_os(self, prompt):
@@ -313,8 +325,11 @@ class iTTY:
         self.verify_login_parameters()
         try:
             return self.secure_login()
-        except CouldNotConnectError:
-            return self.unsecure_login()
+        except CouldNotConnectError as e:
+            try:
+                return self.unsecure_login()
+            except CouldNotConnectError as e2:
+                raise CouldNotConnectError(e, e2, host=self.host)
 
 
     async def async_login(self, **kwargs):
@@ -344,9 +359,11 @@ class iTTY:
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
         self.verify_login_parameters()
+        if not isinstance(self.password, bytes):
+            self.password = self.password.encode()
+        self.session = paramiko.SSHClient() #Create instance of SSHClient object
+        self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            self.session = paramiko.SSHClient() #Create instance of SSHClient object
-            self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             connection = self.session.connect(self.host.strip('\n'),\
                                     username=self.username,\
                                     password=self.password,\
@@ -354,14 +371,14 @@ class iTTY:
                                     allow_agent=False,\
                                     timeout=self.timeout)
             self.shell = self.session.invoke_shell()
-            time.sleep(self.timeout)  #Allow time to log in and strip MOTD
-            self.prompt = self.shell.recv(10000).decode().split('\n')[-1].strip().lstrip('*')
-            self.set_os(self.prompt)
-            return self.os
         except (SSHException, NoValidConnectionsError, AuthenticationException, ValueError, EOFError, socket.error, socket.timeout) as e:
             self.session = None
             self.shell = None
             raise CouldNotConnectError({'ssh': str(e)})
+        time.sleep(self.timeout)  #Allow time to log in and strip MOTD
+        self.prompt = self.shell.recv(10000).decode().split('\n')[-1].strip().lstrip('*')
+        self.set_os(self.prompt)
+        return self.os
 
     async def async_secure_login(self, **kwargs):
         """
@@ -371,9 +388,9 @@ class iTTY:
             self.host = kwargs.get('host', None)
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
+        self.verify_login_parameters()
         if not isinstance(self.password, bytes):
             self.password = self.password.encode()
-        self.verify_login_parameters()
         self.session = paramiko.SSHClient() #Create instance of SSHClient object
         self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         await self._async_connect()
@@ -424,9 +441,9 @@ class iTTY:
         self.verify_login_parameters()
         if not isinstance(self.password, bytes):
             self.password = self.password.encode()
+        login_regex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
+        prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
         try:
-            login_regex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
-            prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
             self.session = telnetlib.Telnet(self.host.strip('\n').encode(), 23, self.timeout)
             _, match, _ = self.session.expect([login_regex, ], timeout=self.timeout)
             if not match:
@@ -543,9 +560,17 @@ class iTTY:
             except OSError:
                 return
             time.sleep(command_delay)
-            if command_header:
-                output.append('\n' + _underline(command))
-            output.append(self.shell.recv(500000).strip().decode(errors="ignore").split('\n')[1:])
+            if command != self.password:
+                if command_header:
+                    output.append('\n' + _underline(command))
+                raw = self.shell.recv(500000).strip().decode(errors="ignore").split('\n')[1:]
+                output.append([ansi_escape.sub('', line) for line in raw])
+                if raw and not (self.prompt.strip('#>') in raw[-1] or 'sername' in raw[-1] or 'assword' in raw[-1]):
+                    try:
+                        self.shell.send('q'.encode() + b'\r')
+                    except OSError:
+                        pass
+                    time.sleep(3)
         if done:
             self.logout()
         return output
@@ -595,24 +620,38 @@ class iTTY:
         Runs commands when logged in via Telnet, returns output
         """
         output = []
-        for command in self.commands:
+        while self.commands:
+            out = None
+            command = self.commands.pop(0)
             if not isinstance(command, bytes):
                 command = command.encode()
+            try:
+                self.session.read_very_eager()
+            except (EOFError, BrokenPipeError, ConnectionResetError):
+                self.unsecure_login()
             self.session.write((command.strip() + b'\r'))
             try:
-                _, _, out = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+                _, match, out = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
             except (EOFError, BrokenPipeError, ConnectionResetError):
                 self.unsecure_login()
                 self.session.write((command.strip() + b'\r'))
                 try:
-                    _, _, out = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
-                except (EOFError, BrokenPipeError, ConnectionResetError):
-                    return
+                    _, match, out = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+                except (EOFError, BrokenPipeError, ConnectionResetError) as e:
+                    raise BrokenConnectionError(self.host, e)
+            if not match:
+                self.session.write((b'q\r'))
+                time.sleep(1)
+                try:
+                    self.session.read_very_eager()
+                except (EOFError, BrokenPipeError, ConnectionResetError) as e:
+                    pass
             time.sleep(command_delay)
             if out and (str(command) != str(self.password) and str(command) != str(self.username)):
+                out = ansi_escape.sub('', out.decode(errors='ignore'))
                 if command_header:
                     output.append(['\n' + _underline(command.decode()), ])
-                output.append(out.decode().split('\n')[1:])
+                output.append(out.split('\n')[1:])
         if done:
             self.logout()
         return output
@@ -625,6 +664,8 @@ class iTTY:
         output = []
         while self.commands:
             command = self.commands.pop(0)
+            if not isinstance(command, bytes):
+                command = command.encode()
             out = await self._async_run_unsec_command(command, command_delay)
             if out and (str(command) != str(self.password) and str(command) != str(self.username)):
                 if command_header:
@@ -636,11 +677,11 @@ class iTTY:
 
     async def _async_run_unsec_command(self, command, command_delay):
         """
-        Helper to async_run_unsec_commands, writes are returns output of commands
+        Helper to async_run_unsec_commands, writes and returns output of commands
         """
         try:
-            await self._async_expect(command_delay=command_delay)
-            self.session.write(command.strip().encode() + b'\r')
+            self.session.read_very_eager()
+            self.session.write(command.strip() + b'\r')
             return await self._async_expect(command_delay=command_delay)
         except (BrokenPipeError, ConnectionResetError) as e:
             raise BrokenConnectionError(self.host, e)

@@ -1,0 +1,36 @@
+#!/bin/env python3
+
+import sys
+import getpass
+from iTTY import iTTY, BrokenConnectionError, CouldNotConnectError
+
+def attempt_login(host):
+    success = None
+    host = host.strip()
+    try:
+        with iTTY(host=host.strip(), username=username, password=password) as tty:
+            success = True
+            if tty.shell:
+                print(f'{host} reachable via SSH')
+            elif tty.session:
+                print(f'{host} reachable via TELNET')
+            tty.set_commands([command])
+            print(f'Running command "{command}" with up to a ten second delay for output')
+            output = tty.run_commands(10)
+            if output:
+                print(f'Ran "{command}": got: "{output}"')
+    except (CouldNotConnectError, BrokenConnectionError) as e:
+        print(f'{host} not reachable, exception: {e}')
+    if not success:
+        print(f'{host} not reachable')
+
+username = sys.argv[sys.argv.index("-u") + 1] if sys.argv and "-u" in sys.argv else None
+username = input("Username: ") if not username else username
+password = getpass.getpass()
+host = sys.argv[sys.argv.index("-d") + 1] if sys.argv and "-d" in sys.argv else None
+host = input("Host: ") if not host else host
+command = sys.argv[sys.argv.index("-c") + 1] if sys.argv and "-c" in sys.argv else None
+command = input('Command: ["show version" if empty]: ') if not command else command
+command = "show version" if not command else command
+
+attempt_login(host)
