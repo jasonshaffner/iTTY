@@ -16,6 +16,8 @@ setup(
 		'scripts/check_syslog',
 		'scripts/check_trap_collectors',
                 'scripts/verify_login',
+                'scripts/can_i_login',
+                'scripts/can_i_run_commands',
         ],
         classifiers=[
             "Development Status :: 4 - Beta",
