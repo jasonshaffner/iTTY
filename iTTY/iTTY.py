@@ -683,7 +683,7 @@ class iTTY:
             self.session.read_very_eager()
             self.session.write(command.strip() + b'\r')
             return await self._async_expect(command_delay=command_delay)
-        except (BrokenPipeError, ConnectionResetError) as e:
+        except (BrokenPipeError, ConnectionResetError, EOFError) as e:
             raise BrokenConnectionError(self.host, e)
 
 
@@ -704,7 +704,7 @@ class iTTY:
             if not match:
                 self._async_run_unsec_command('q', 1)
             return ansi_escape.sub('', output.decode(errors='ignore'))
-        except (EOFError, ConnectionResetError) as e:
+        except (BrokenPipeError, EOFError, ConnectionResetError) as e:
             raise BrokenConnectionError(self.host, e)
 
     def logout(self):
