@@ -698,7 +698,7 @@ class iTTY:
             if not match:
                 self._async_run_unsec_command('q', 1)
             return ansi_escape.sub('', output.decode(errors='ignore'))
-        except (BrokenPipeError, EOFError, ConnectionResetError. AttributeError) as e:
+        except (BrokenPipeError, EOFError, ConnectionResetError, AttributeError) as e:
             raise BrokenConnectionError(self.host, e)
 
     def logout(self):
