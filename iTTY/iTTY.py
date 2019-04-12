@@ -190,10 +190,7 @@ class iTTY:
                     self.os = self.IOS
                 else:
                     self.os = self.ASA
-                    if self.shell:
-                        self.prompt = "".join((self.prompt.strip()[0:-1], '#'))
-                    elif self.session:
-                        self.prompt = "".join((self.prompt.strip()[0:-1], b'#'))
+                    self.prompt = "".join((self.prompt.strip()[0:-1], '#'))
         elif re.search(''.join((self.username, '@\(')), str(prompt)):
             self.os = self.F5
         elif re.search('refresh \:', str(prompt)) or re.search('--:- / cli->', str(prompt)):
@@ -250,10 +247,7 @@ class iTTY:
                     self.os = self.IOS
                 else:
                     self.os = self.ASA
-                    if self.shell:
-                        self.prompt = "".join((self.prompt.strip()[0:-1], '#'))
-                    elif self.session:
-                        self.prompt = "".join((self.prompt.strip()[0:-1], b'#'))
+                    self.prompt = "".join((self.prompt.strip()[0:-1], '#'))
         elif re.search(''.join((self.username, '@\(')), str(prompt)):
             self.os = self.F5
         elif re.search('refresh \:', str(prompt)) or re.search('--:- / cli->', str(prompt)):
@@ -427,7 +421,7 @@ class iTTY:
         """
         loop = asyncio.get_event_loop()
         raw_prompt = yield from loop.run_in_executor(None, partial(self.shell.recv, 10000))
-        return raw_prompt.decode().split('\n')[-1].split('*')[-1].strip().lstrip('*')
+        return raw_prompt.decode(errors="ignore").split('\n')[-1].split('*')[-1].strip().lstrip('*')
 
 
     def unsecure_login(self, **kwargs):
@@ -456,7 +450,7 @@ class iTTY:
             _, match, previous_text = self.session.expect([prompt_regex,], timeout=self.timeout)
             if not match:
                 raise CouldNotConnectError(self.host)
-            self.prompt = previous_text.split(b'\n')[-1].strip().decode().lstrip('*')
+            self.prompt = previous_text.split(b'\n')[-1].strip().decode(errors="ignore").lstrip('*')
             self.set_os(self.prompt)
             return self.os
         except (CouldNotConnectError, ConnectionResetError, BrokenPipeError, ConnectionRefusedError, EOFError, OSError, socket.timeout) as e:
