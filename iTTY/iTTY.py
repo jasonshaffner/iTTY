@@ -688,7 +688,11 @@ class iTTY:
         """
         loop = asyncio.get_event_loop()
         if not expectation:
-            expectation = re.compile(self.prompt.encode())
+            try:
+                expectation = re.compile(self.prompt.encode())
+            except re.error as err:
+                print(err, self.prompt)
+                raise BrokenConnectionError(self.host, err)
         if not isinstance(expectation, re.Pattern):
             if not isinstance(expectation, bytes):
                 expectation = expectation.encode()
