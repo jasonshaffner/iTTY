@@ -807,6 +807,8 @@ def _underline(input, line_char="-"):
     """
     Format helper, makes lines under a string
     """
+    if isinstance(input, bytes):
+        input = input.encode()
     return input.strip() + '\n' + _make_line(len(input.strip()), line_char)
 
 
