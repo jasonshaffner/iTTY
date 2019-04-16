@@ -817,7 +817,7 @@ async def extract_ios_syslog_server(tty):
     """
     Extracts configured syslog servers of remote cisco IOS device
     """
-    tty.set_commands(["terminal length 0", "show run | in logging"])
+    tty.set_commands(["terminal length 0", "show run | in logging [0-9]"])
     output = await tty.async_run_commands(20)
     if output:
         syslog_servers =  set([ip_regex.search(line).group(0) for out in output for line in out if re.search('logging', line) and ip_regex.search(line)])
