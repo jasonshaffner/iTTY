@@ -217,8 +217,7 @@ async def extract_alu_version(tty):
     """
     Extracts software version of remote alcatel/nokia device
     """
-    tty.set_commands(['show version'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show version', 10)
     if not output:
         return
     for out in output:
@@ -232,8 +231,7 @@ async def extract_xr_version(tty):
     """
     version = ''
     sp = ''
-    tty.set_commands(["show version brief | in XR"])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show version brief | in XR', 10)
     if output:
         for out in output:
             for line in out:
@@ -244,15 +242,13 @@ async def extract_xr_version(tty):
                         print('IndexError async_extract_xr_version', line)
     if not version:
         return
-    tty.set_commands(["show version brief | in memory"])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show version brief | in memory', 10)
     if output:
         dev_type = str(output)
     else:
         return version
     if re.search('ASR9K', dev_type):
-        tty.set_commands(["admin show install active summary | in sp"])
-        output = await tty.async_run_commands(10)
+        output = await tty.async_run_commands('admin show install active summary | in sp', 10)
         if output:
             for out in output:
                 for line in out:
@@ -269,8 +265,7 @@ async def extract_xr_version(tty):
             else:
                 return version
     else:
-        tty.set_commands(["admin sh install active summary | in CSC | utility wc -l"])
-        output = await tty.async_run_commands(10)
+        output = await tty.async_run_commands('admin show install active summary | in CSC | utility wc -l', 10)
         if output:
             ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
             for out in output:
@@ -290,8 +285,7 @@ async def extract_ios_version(tty):
     """
     Extracts software version of remote cisco IOS device
     """
-    tty.set_commands(['terminal length 0', 'show version'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['terminal length 0', 'show version'], 10)
     if output:
         for out in output:
             for line in out:
@@ -308,15 +302,13 @@ async def extract_junos_version(tty):
     """
     Extracts software version of remote juniper device
     """
-    tty.set_commands(['set cli screen-length 0', 'show version | match "Software Suite"'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['set cli screen-length 0', 'show version | match "Software Suite"'], 10)
     if output:
         for out in output:
             for line in out:
                 if re.search('Software Suite', line) and not re.search('show|builder', line):
                     return line.split()[-1].strip('[').strip(']')
-    tty.set_commands(['show version | match "Junos:"'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show version | match "Junos:"', 10)
     if output:
         for out in output:
             for line in out:
@@ -327,8 +319,7 @@ async def extract_asa_version(tty):
     """
     Extracts software version of remote cisco asa device
     """
-    tty.set_commands(['show version | in Software Version', 'show version | in system:'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['show version | in Software Version', 'show version | in system:'], 10)
     if output:
         for out in output:
             for line in out:
@@ -342,8 +333,7 @@ async def extract_f5_version(tty):
     """
     Extracts software version of remote f5 device
     """
-    tty.set_commands(['show sys version | grep Version | grep -v Sys'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show sys version | grep Version | grep -v Sys', 10)
     if output:
         for out in output:
             for line in out:
@@ -354,8 +344,7 @@ async def extract_arista_version(tty):
     """
     Extracts software version of remote arista device
     """
-    tty.set_commands(['show version | in Software'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show version | in Software', 10)
     if output:
         for out in output:
             for line in out:
@@ -366,8 +355,7 @@ async def extract_a10_version(tty):
     """
     Extracts software version of remote a10 device
     """
-    tty.set_commands(['show version | in Advanced'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show version | in Advanced', 10)
     if output:
         for out in output:
             for line in out:
@@ -378,8 +366,7 @@ async def extract_avocent_version(tty):
     """
     Extracts software version of remote avocent device
     """
-    tty.set_commands(['show /system/information/'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show /system/information/', 10)
     if output:
         for out in output:
             for line in out:
@@ -391,8 +378,7 @@ async def extract_alu_model(tty):
     """
     Extracts model of remote alcatel/nokia device
     """
-    tty.set_commands(['show chassis | match Type'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show chassis | match Type', 10)
     if output:
         for out in output:
             for line in out:
@@ -403,8 +389,7 @@ async def extract_xr_model(tty):
     """
     Extracts model of remote cisco IOS-XR device
     """
-    tty.set_commands(['terminal length 0', 'show version brief | in "memory|hassis"'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['terminal length 0', 'show version brief | in "memory|hassis"'], 10)
     if re.search('CRS', str(output)):
         try:
             return tty.sift_output(output, [tty.username, tty.password, tty.prompt])[0].split()[1]
@@ -418,8 +403,7 @@ async def extract_xr_model(tty):
                 elif re.search('ASR\ ', line):
                     return line.split()[1]
     else:
-        tty.set_commands(['admin show inventory'])
-        output = await tty.async_run_commands(10)
+        output = await tty.async_run_commands('admin show inventory', 10)
         nxt = False
         if not output:
             return
@@ -435,8 +419,7 @@ async def extract_ios_model(tty):
     """
     Extracts model of remote cisco IOS device
     """
-    tty.set_commands(['terminal length 0', 'show version'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['terminal length 0', 'show version'], 10)
     if output:
         for out in output:
             for line in out:
@@ -453,8 +436,7 @@ async def extract_junos_model(tty):
     """
     Extracts model of remote juniper device
     """
-    tty.set_commands(['set cli screen-length 0', 'show version local | match Model'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['set cli screen-length 0', 'show version local | match Model'], 10)
     if output:
         for out in output:
             for line in out:
@@ -465,8 +447,7 @@ async def extract_asa_model(tty):
     """
     Extracts model of remote cisco ASA device
     """
-    tty.set_commands(['terminal pager 0', 'show version | in Hardware', 'show inventory | in PID'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['terminal pager 0', 'show version | in Hardware', 'show inventory | in PID'], 10)
     if re.search('Hardware:', str(output)):
         for out in output:
             for line in out:
@@ -491,15 +472,13 @@ async def extract_f5_model(tty):
     """
     Extracts model of remote f5 device
     """
-    tty.set_commands(['show sys hardware field-fmt | grep marketing-name'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show sys hardware field-fmt | grep marketing-name', 10)
     if output:
         for out in output:
             for line in out:
                 if not re.search('show', line) and re.search('marketing', line) and not re.match('Edition', line.split()[-1]):
                     return line.split()[-1]
-    tty.set_commands(['show sys hardware field-fmt | grep platform'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show sys hardware field-fmt | grep platform', 10)
     if output:
         for out in output:
             for line in out:
@@ -510,8 +489,7 @@ async def extract_arista_model(tty):
     """
     Extracts model of remote arista device
     """
-    tty.set_commands(['show version | in Arista'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show version | in Arista', 10)
     if output:
         for out in output:
             for line in out:
@@ -522,8 +500,7 @@ async def extract_a10_model(tty):
     """
     Extracts model of remote a10 device
     """
-    tty.set_commands(['show version | include Series'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show version | include Series', 10)
     if output:
         for out in output:
             for line in out:
@@ -534,8 +511,7 @@ async def extract_avocent_model(tty):
     """
     Extracts model of remote avocent device
     """
-    tty.set_commands(['show /system/information/'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show /system/information/', 10)
     if output:
         for out in output:
             for line in out:
@@ -552,9 +528,7 @@ async def extract_cisco_hostname(tty):
     """
     Extracts hostname of remote cisco (and arista EOS) device
     """
-    commands = ['terminal length 0', 'show run | in hostname', 'show run | in domain name', 'show run | in domain-name']
-    tty.set_commands(commands)
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['terminal length 0', 'show run | in hostname', 'show run | in domain name', 'show run | in domain-name'], 10)
     if output:
         hostname = None
         domain = None
@@ -579,8 +553,7 @@ async def extract_junos_hostname(tty):
     """
     Extracts hostname of remote juniper device
     """
-    tty.set_commands(['set cli screen-length 0', 'show configuration | display set | match "host-name"', 'show configuration | display set | match "domain-name"'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['set cli screen-length 0', 'show configuration | display set | match "host-name"', 'show configuration | display set | match "domain-name"'], 10)
     node_names = []
     if output:
         hostname = None
@@ -606,8 +579,7 @@ async def extract_f5_hostname(tty):
     """
     Extracts hostname of remote f5 device
     """
-    tty.set_commands(['list cm device | grep hostname'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('list cm device | grep hostname', 10)
     if output:
         for out in output:
             for line in out:
@@ -618,8 +590,7 @@ async def extract_a10_hostname(tty):
     """
     Extracts hostname of remote a10 device
     """
-    tty.set_commands(['show run | in hostname'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show run | in hostname', 10)
     if output:
         for out in output:
             for line in out:
@@ -632,8 +603,7 @@ async def extract_avocent_hostname(tty):
     """
     Extracts hostname of remote avocent device
     """
-    tty.set_commands(['ls access/'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('ls access/', 10)
     if output:
         for out in output:
             for line in out:
@@ -650,8 +620,7 @@ async def extract_alu_contact(tty):
     """
     Extracts contact of remote alcatel/nokia device
     """
-    tty.set_commands(['admin display-config | match contact'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('admin display-config | match contact', 10)
     if output:
         for out in output:
             for line in out:
@@ -662,8 +631,7 @@ async def extract_cisco_contact(tty):
     """
     Extracts contact of remote cisco (and arista EOS) device
     """
-    tty.set_commands(['show run | in contact'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show run | in contact', 10)
     if output:
         for out in output:
             for line in out:
@@ -674,8 +642,7 @@ async def extract_junos_contact(tty):
     """
     Extracts contact of remote juniper device
     """
-    tty.set_commands(['set cli screen-length 0', 'show configuration | display set | match contact'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['set cli screen-length 0', 'show configuration | display set | match contact'], 10)
     if output:
         for out in output:
             for line in out:
@@ -686,8 +653,7 @@ async def extract_f5_contact(tty):
     """
     Extracts contact of remote f5 device
     """
-    tty.set_commands(['list sys snmp sys-contact'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('list sys snmp sys-contact', 10)
     if output:
         for out in output:
             for line in out:
@@ -704,8 +670,7 @@ async def extract_a10_contact(tty):
     """
     Extracts contact of remote a10 device
     """
-    tty.set_commands(['show run | in snmp-server contact'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show run | in snmp-server contact', 10)
     if output:
         for out in output:
             for line in out:
@@ -723,8 +688,7 @@ async def extract_alu_location(tty):
     """
     Extracts location of remote alcatel/nokia device
     """
-    tty.set_commands(['admin display-config | match location'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('admin display-config | match location', 10)
     if output:
         for out in output:
             for line in out:
@@ -735,8 +699,7 @@ async def extract_cisco_location(tty):
     """
     Extracts location of remote cisco (and arista EOS) device
     """
-    tty.set_commands(['terminal length 0', 'show run | in location'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['terminal length 0', 'show run | in location'], 10)
     if output:
         for out in output:
             for line in out:
@@ -747,8 +710,7 @@ async def extract_junos_location(tty):
     """
     Extracts location of remote juniper device
     """
-    tty.set_commands(['set cli screen-length 0', 'show configuration | display set | match location'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['set cli screen-length 0', 'show configuration | display set | match location'], 10)
     if output:
         for out in output:
             for line in out:
@@ -759,8 +721,7 @@ async def extract_f5_location(tty):
     """
     Extracts location of remote f5 device
     """
-    tty.set_commands(['list sys snmp sys-location'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('list sys snmp sys-location', 10)
     if output:
         for out in output:
             for line in out:
@@ -778,8 +739,7 @@ async def extract_a10_location(tty):
     """
     Extracts location of remote a10 device
     """
-    tty.set_commands(['show run | in snmp-server location'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show run | in snmp-server location', 10)
     if output:
         for out in output:
             for line in out:
@@ -793,8 +753,7 @@ async def extract_alu_syslog_server(tty):
     """
     Extracts configured syslog servers of remote alcatel/nokia device
     """
-    tty.set_commands(['admin display-config | match syslog context children | match address'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('admin display-config | match syslog context children | match address', 10)
     if output:
         syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
         if syslog_servers:
@@ -805,8 +764,7 @@ async def extract_xr_syslog_server(tty):
     """
     Extracts configured syslog servers of remote cisco IOS-XR device
     """
-    tty.set_commands(["show run formal | utility egrep '^logging [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'"])
-    output = await tty.async_run_commands(20)
+    output = await tty.async_run_commands("show run formal | utility egrep '^logging [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'", 20)
     if output:
         syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
         if syslog_servers:
@@ -817,8 +775,7 @@ async def extract_ios_syslog_server(tty):
     """
     Extracts configured syslog servers of remote cisco IOS device
     """
-    tty.set_commands(["terminal length 0", "show run | in logging.*[0-9]"])
-    output = await tty.async_run_commands(20)
+    output = await tty.async_run_commands(["terminal length 0", "show run | in logging.*[0-9]"], 20)
     if output:
         syslog_servers =  set([ip_regex.search(line).group(0) for out in output for line in out if re.search('logging', line) and ip_regex.search(line)])
         if syslog_servers:
@@ -829,8 +786,7 @@ async def extract_junos_syslog_server(tty):
     """
     Extracts configured syslog servers of remote juniper device
     """
-    tty.set_commands(['set cli screen-length 0', "show configuration | display set | match syslog\ host"])
-    output = await tty.async_run_commands(20)
+    output = await tty.async_run_commands(['set cli screen-length 0', "show configuration | display set | match syslog\ host"], 20)
     if output:
         syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
         if syslog_servers:
@@ -841,8 +797,7 @@ async def extract_asa_syslog_server(tty):
     """
     Extracts configured syslog servers of remote cisco asa device
     """
-    tty.set_commands(['terminal pager 0', 'show run | in logging host'])
-    output = await tty.async_run_commands(20)
+    output = await tty.async_run_commands(['terminal pager 0', 'show run | in logging host'], 20)
     if output:
         syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
         if syslog_servers:
@@ -853,8 +808,7 @@ async def extract_f5_syslog_server(tty):
     """
     Extracts configured syslog servers of remote f5 device
     """
-    tty.set_commands(['show running-config sys syslog'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show running-config sys syslog', 10)
     if output:
         syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
         if syslog_servers:
@@ -865,8 +819,7 @@ async def extract_arista_syslog_server(tty):
     """
     Extracts configured syslog servers of remote arista device
     """
-    tty.set_commands(["show run | in logging host"])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands("show run | in logging host", 10)
     if output:
         syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
         if syslog_servers:
@@ -877,8 +830,7 @@ async def extract_a10_syslog_server(tty):
     """
     Extracts configured syslog servers of remote a10 device
     """
-    tty.set_commands(["show run | in logging host"])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands("show run | in logging host", 10)
     if output:
         syslog_servers = set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
         if syslog_servers:
@@ -886,8 +838,7 @@ async def extract_a10_syslog_server(tty):
     print(f'Could not extract A10 syslog server data from {tty.host}: {output}')
 
 async def extract_junos_series(tty):
-    tty.set_commands(['set cli screen-length 0', 'show version local | match Model'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['set cli screen-length 0', 'show version local | match Model'], 10)
     if output:
         for out in output:
             for line in out:
@@ -895,15 +846,13 @@ async def extract_junos_series(tty):
                     return line.split()[-1].split('-')[0]
 
 async def extract_ios_series(tty):
-    tty.set_commands(['terminal length 0', 'show version'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['terminal length 0', 'show version'], 10)
     if output:
         if re.search('c7600', str(output)):
             return 'c7600'
         elif re.search('s\d+_rp', str(output)):
             match = re.search('s\d+_rp', str(output))
-            tty.set_commands(['terminal length 0', 'show inventory'])
-            out = await tty.async_run_commands(10)
+            out = await tty.async_run_commands(['terminal length 0', 'show inventory'], 10)
             if out:
                 series_line = next((line for o in out for line in o if re.search('Chassis', line)), None)
                 if series_line:
@@ -932,9 +881,7 @@ async def extract_ios_series(tty):
                     return ''.join(('n', line.split('Nexus')[1].split()[0]))
 
 async def extract_alu_series(tty):
-    return
-    tty.set_commands(['show chassis | Type'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show chassis | Type', 10)
     if output:
         for out in output:
             for line in out:
@@ -942,8 +889,7 @@ async def extract_alu_series(tty):
                     return "".join((line.split()[-1].split('-')[0], line.split()[-2])).lower()
 
 async def extract_xr_series(tty):
-    tty.set_commands(["show version brief | in memory"])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands("show version brief | in memory", 10)
     if output:
         for out in output:
             for line in out:
@@ -955,8 +901,7 @@ async def extract_xr_series(tty):
                     return series
 
 async def extract_asa_series(tty):
-    tty.set_commands(['show version | in hardware', 'show inventory | in DESCR:'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['show version | in hardware', 'show inventory | in DESCR:'], 10)
     if output:
         for out in output:
             for line in out:
@@ -969,8 +914,7 @@ async def extract_asa_series(tty):
                     print(f'extract_asa_series: IndexError: {line}')
 
 async def extract_arista_series(tty):
-    tty.set_commands(['show version | in Arista'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show version | in Arista', 10)
     if output:
         for out in output:
             for line in out:
@@ -978,80 +922,67 @@ async def extract_arista_series(tty):
                     return line.split('Arista')[1].split('-')[1].strip()
 
 async def extract_alu_trap_collector(tty):
-    tty.set_commands(['admin display config | match trap-target'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('admin display config | match trap-target', 10)
     if output:
         return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_xr_trap_collector(tty):
-    tty.set_commands(['show run formal | in host.*traps'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show run formal | in host.*traps', 10)
     if output:
         return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_ios_trap_collector(tty):
-    tty.set_commands(['show run | in snmp-server.*host'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show run | in snmp-server.*host', 10)
     if output:
         return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_junos_trap_collector(tty):
-    tty.set_commands(['show configuration | display set | match trap.*targets'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show configuration | display set | match trap.*targets', 10)
     if output:
         return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_asa_trap_collector(tty):
-    tty.set_commands(['show run | in snmp.*host'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show run | in snmp.*host', 10)
     if output:
         return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line) and not re.search('poll', line)])
 
 async def extract_f5_trap_collector(tty):
-    tty.set_commands(['show running-config sys snmp traps | grep host'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show running-config sys snmp traps | grep host', 10)
     if output:
         return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_arista_trap_collector(tty):
-    tty.set_commands(['show run | in snmp-server.*host'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show run | in snmp-server.*host', 10)
     if output:
         return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_a10_trap_collector(tty):
-    tty.set_commands(['show run | in snmp-server.*host'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('show run | in snmp-server.*host', 10)
     if output:
         return set([ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line)])
 
 async def extract_alu_acl(tty, acl_name):
-    tty.set_commands([f'admin display-config | match "prefix-list \"{acl_name}\"" context all'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(f'admin display-config | match "prefix-list \"{acl_name}\"" context all', 10)
     if output:
         return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
 
 async def extract_xr_acl(tty, acl_name):
-    tty.set_commands([f'show access-list {acl-name}'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(f'show access-list {acl-name}', 10)
     if output:
         return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
 
 async def extract_ios_acl(tty, acl_name):
-    tty.set_commands([f'show ip access-list {acl-name}'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(f'show ip access-list {acl-name}', 10)
     if output:
         return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
 
 async def extract_junos_acl(tty, acl_name):
-    tty.set_commands([f'show configuration firewall | display set | match {acl-name}'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(f'show configuration firewall | display set | match {acl-name}', 10)
     if output:
         return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
 
 async def extract_arista_acl(tty, acl_name):
-    tty.set_commands([f'show ip access-list {acl-name}'])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(f'show ip access-list {acl-name}', 10)
     if output:
         return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
 
@@ -1060,8 +991,7 @@ async def extract_alu_interface_v4_addresses(tty, interface):
     command = 'show router interface ipv4'
     if interface:
         command = " ".join([command, interface])
-    tty.set_commands(['environment no more', command])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['environment no more', command], 10)
     interfaces = {}
     if output:
         if interface:
@@ -1073,8 +1003,7 @@ async def extract_cisco_interface_v4_addresses(tty, interface):
     command = 'show ipv4 interface brief' if tty.os == 2 else 'show ip interface brief'
     if interface:
         command = " ".join([command, interface])
-    tty.set_commands(['terminal length 0', command])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['terminal length 0', command], 10)
     if output:
         if interface:
             return {interface: ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line) and re.match(interface, line)}
@@ -1085,8 +1014,7 @@ async def extract_junos_interface_v4_addresses(tty, interface):
     command = 'show interfaces terse | match "inet * [0-9]" | except "^em|^bme|^jsrv"'
     if interface:
         command = " ".join((command.split('|')[0], interface, "|", command.split('|')[1:]))
-    tty.set_commands(['set cli screen-length 0', command])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['set cli screen-length 0', command], 10)
     if output:
         if interface:
             return {interface: ip_regex.search(line).group(0) for out in output for line in out if ip_regex.search(line) and re.match(interface, line)}
@@ -1097,8 +1025,7 @@ async def extract_asa_interface_v4_addresses(tty, interface):
     command = 'show interface ip brief'
     if interface:
         command = " ".join((command, 'include |', interface))
-    tty.set_commands(['terminal pager 0', command])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands(['terminal pager 0', command], 10)
     phys_interfaces = {}
     if output:
         if interface:
@@ -1109,8 +1036,7 @@ async def extract_asa_interface_v4_addresses(tty, interface):
     if phys_interfaces:
         commands = (f'show interface {interface} | include {interface}' for interface, _ in phys_interfaces.items())
     if commands:
-        tty.set_commands(commands)
-        output = await tty.async_run_commands(5)
+        output = await tty.async_run_commands(commands, 5)
         if output:
             return {line.split('"')[1]: phys_interfaces.get(line.split()[1]) for out in output for line in out if '"' in line and line.split()[1] in phys_interfaces.keys()}
 
@@ -1122,9 +1048,7 @@ async def extract_a10_interface_v4_addresses(tty, interface):
     raise NotImplementedError
 
 async def extract_xr_chassis_configuration(tty):
-    command = 'admin show controllers fabric plane all detail | in UP'
     regex = re.compile('MC\|SC\|B2B')
-    tty.set_commands([command])
-    output = await tty.async_run_commands(10)
+    output = await tty.async_run_commands('admin show controllers fabric plane all detail | in UP', 10)
     if output:
         return next((regex.search(line).group(0) for out in output for line in out if regex.search(line)), None)

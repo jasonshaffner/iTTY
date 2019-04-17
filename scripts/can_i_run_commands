@@ -14,9 +14,8 @@ def attempt_login(host):
                 print(f'{host} reachable via SSH')
             elif tty.session:
                 print(f'{host} reachable via TELNET')
-            tty.set_commands([command])
             print(f'Running command "{command}" with up to a ten second delay for output')
-            output = tty.run_commands(10)
+            output = tty.run_commands(command, 10)
             if output:
                 print(f'Ran "{command}": got: "{output}"')
     except (CouldNotConnectError, BrokenConnectionError) as e:
