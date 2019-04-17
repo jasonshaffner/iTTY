@@ -147,8 +147,7 @@ async def run_commands(device, report, failed):
                             failed.append(device)
                             return
                 commands.append(command)
-            tty.set_commands(commands)
-            output = await tty.async_run_commands(command_delay=10, command_header=1)
+            output = await tty.async_run_commands(commands, command_delay=10, command_header=1)
             if not tty.sift_output(output, tty.prompt, '-', commands):
                 print('No output from ', device)
                 failed.append(device)

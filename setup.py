@@ -2,9 +2,9 @@ from distutils.core import setup
 
 setup(
     name='iTTY',
-    version='0.9',
+    version='0.91',
     description='Intelligent TTY Utilities for Network Administration',
-    author='Jason Shaffner, Patrick Lawless',
+    author='Jason Shaffner',
     packages=['iTTY', 'iTTY.utils'],
     license="LGPL",
 	scripts=[

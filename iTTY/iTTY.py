@@ -2,7 +2,6 @@
 Telnet and SSH Client
 """
 
-import getpass
 import telnetlib
 import time
 import asyncio
@@ -51,8 +50,6 @@ class iTTY:
         self.session = None
         self.shell = None
         self.prompt = None
-        self.commands = []
-        self.output = []
 
 
     def __enter__(self, **kwargs):
@@ -87,54 +84,6 @@ class iTTY:
         self.logout()
 
 
-    def set_host(self, host):
-        """
-        Sets host variable
-        """
-        self.host = host
-
-
-    def get_host(self):
-        """
-        Returns host (if none set, default is None)
-        """
-        return self.host
-
-
-    def clear_host(self):
-        """
-        Sets host variable = None
-        """
-        self.host = None
-
-
-    def set_login(self, **kwargs):
-        """
-        Sets username and password used for login
-        """
-        self.username = kwargs.get('username', None)
-        if not self.username:
-            self.username = input("Username: ")
-        self.password = kwargs.get('password', None)
-        if not self.password:
-            self.password = getpass.getpass()
-
-
-    def get_username(self):
-        """
-        Returns username (if none set, default is None)
-        """
-        return self.username
-
-
-    def clear_login(self):
-        """
-        Sets username and password variables = None
-        """
-        self.username = None
-        self.password = None
-
-
     def verify_login_parameters(self):
         """
         Verifies that all necessary login parameters are set, raises LoginParametersNotSpecifiedError if not
@@ -153,9 +102,8 @@ class iTTY:
         elif re.search('CPU.*#', str(prompt)):
             self.os = self.XR
         elif re.search('.*#', str(prompt)) and not re.search('@', str(prompt)):
-            self.set_commands(['show version'])
             try:
-                output = self.run_commands(3)
+                output = self.run_commands('show version', 3)
             except BrokenConnectionError:
                 raise
             if re.search(' A10 ', str(output)):
@@ -171,9 +119,8 @@ class iTTY:
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
             self.os = self.JUNOS
         elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)) and not re.search('->', str(prompt)):
-            self.set_commands(['show version'])
             try:
-                output = self.run_commands(3)
+                output = self.run_commands('show version', 3)
             except:
                 return
             if re.search('Arista', str(output)):
@@ -181,9 +128,8 @@ class iTTY:
             elif re.search(' A10 ', str(output)):
                 self.os = self.A10
             else:
-                self.set_commands(['enable', self.password])
                 try:
-                    self.run_commands(3)
+                    self.run_commands(['enable', self.password], 3)
                 except BrokenConnectionError:
                     raise
                 if re.search(r'(?:^| |\t)IOS(?:$| |\t)', str(output)):
@@ -196,9 +142,8 @@ class iTTY:
         elif re.search('refresh \:', str(prompt)) or re.search('--:- / cli->', str(prompt)):
             self.os = self.AVOCENT
             if re.search('refresh \:', str(prompt)):
-                self.set_commands(['q'])
                 self.prompt = '--:- / cli->'
-                self.run_commands(3)
+                self.run_commands('q', 3)
         return self.os
 
     async def async_set_os(self, prompt):
@@ -210,9 +155,8 @@ class iTTY:
         elif re.search('CPU.*#', str(prompt)):
             self.os = self.XR
         elif re.search('.*#', str(prompt)) and not re.search('@', str(prompt)):
-            self.set_commands(['show version'])
             try:
-                output = await self.async_run_commands(3)
+                output = await self.async_run_commands('show version', 3)
             except:
                 return
             if re.search(' A10 ', str(output)):
@@ -228,9 +172,8 @@ class iTTY:
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
             self.os = self.JUNOS
         elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)) and not re.search('->', str(prompt)):
-            self.set_commands(['show version'])
             try:
-                output = await self.async_run_commands(3)
+                output = await self.async_run_commands('show version', 3)
             except:
                 return
             if re.search('Arista', str(output)):
@@ -238,9 +181,8 @@ class iTTY:
             elif re.search(' A10 ', str(output)):
                 self.os = self.A10
             else:
-                self.set_commands(['enable', self.password])
                 try:
-                    await self.async_run_commands(3)
+                    await self.async_run_commands(['enable', self.password], 3)
                 except:
                     return
                 if re.search(r'(?:^| |\t)IOS(?:$| |\t)', str(output)):
@@ -253,60 +195,9 @@ class iTTY:
         elif re.search('refresh \:', str(prompt)) or re.search('--:- / cli->', str(prompt)):
             self.os = self.AVOCENT
             if re.search('refresh \:', str(prompt)):
-                self.set_commands(['q'])
                 self.prompt = '--:- / cli->'
-                await self.async_run_commands(3)
+                await self.async_run_commands('q', 3)
         return self.os
-
-
-    def get_os(self):
-        """
-        Returns integer signifying type of OS
-        """
-        return self.os
-
-
-    def clear_os(self):
-        """
-        Sets os variable = 0
-        """
-        self.os = 0
-
-
-    def set_commands(self, commands):
-        """
-        Takes a list of commands as arg, sets commands to that list
-        """
-        self.commands = commands
-
-
-    def set_commands_from_file(self, file):
-        """
-        Takes a file with list of commands as arg, set_s commands to that list
-        """
-        self.commands = list(open(file, 'r'))
-
-
-    def add_command(self, command):
-        """
-        Takes a single command as arg, appends command to list of commands
-        """
-        self.commands.append(command)
-
-
-    def get_commands(self):
-        """
-        Returns list of commands to run_
-        """
-        return self.commands
-
-
-    def clear_commands(self):
-        """
-        Sets commands variable = []
-        """
-        self.commands = []
-
 
     def login(self, **kwargs):
         """
@@ -324,7 +215,6 @@ class iTTY:
                 return self.unsecure_login()
             except CouldNotConnectError as e2:
                 raise CouldNotConnectError(e, e2, host=self.host)
-
 
     async def async_login(self, **kwargs):
         """
@@ -510,32 +400,34 @@ class iTTY:
         elif isinstance(self.session, telnetlib.Telnet):
             return 'Telnet'
 
-    def run_commands(self, command_delay, command_header=0, done=False):
+    def run_commands(self, commands, command_delay=1, command_header=0, done=False):
         """
-        Runs commands stored in self.commands on remote device
-        """
-        if self.shell:
-            return self.run_sec_commands(command_delay, command_header=command_header, done=done)
-        elif self.session:
-            return self.run_unsec_commands(command_delay, command_header=command_header, done=done)
-
-
-    async def async_run_commands(self, command_delay, command_header=0, done=False):
-        """
-        Runs commands stored in self.commands asynchronously on remote device
+        Runs commands stored in commands on remote device
         """
         if self.shell:
-            return await self.async_run_sec_commands(command_delay, command_header=command_header, done=done)
+            return self.run_sec_commands(commands, command_delay, command_header=command_header, done=done)
         elif self.session:
-            return await self.async_run_unsec_commands(command_delay, command_header=command_header, done=done)
+            return self.run_unsec_commands(commands, command_delay, command_header=command_header, done=done)
 
 
-    def run_sec_commands(self, command_delay=1, command_header=0, done=False):
+    async def async_run_commands(self, commands, command_delay=1, command_header=0, done=False):
+        """
+        Runs commands stored in commands asynchronously on remote device
+        """
+        if self.shell:
+            return await self.async_run_sec_commands(commands, command_delay, command_header=command_header, done=done)
+        elif self.session:
+            return await self.async_run_unsec_commands(commands, command_delay, command_header=command_header, done=done)
+
+
+    def run_sec_commands(self, commands, command_delay=1, command_header=0, done=False):
         """
         Runs commands when logged in via SSH, returns output
         """
         output = []
-        for command in self.get_commands():
+        if isinstance(commands, (str, bytes)):
+            commands = [commands]
+        for command in commands:
             if not isinstance(command, bytes):
                 command = command.encode()
             try:
@@ -569,12 +461,14 @@ class iTTY:
             self.logout()
         return output
 
-    async def async_run_sec_commands(self, command_delay=1, command_header=0, done=False):
+    async def async_run_sec_commands(self, commands, command_delay=1, command_header=0, done=False):
         """
         Runs commands asynchronously when logged in via SSH, returns output
         """
         output = []
-        for command in self.commands:
+        if isinstance(commands, (str, bytes)):
+            commands = [commands]
+        for command in commands:
             if not isinstance(command, bytes):
                 command = command.encode()
             try:
@@ -609,14 +503,16 @@ class iTTY:
         return output
 
 
-    def run_unsec_commands(self, command_delay=1, command_header=0, done=False):
+    def run_unsec_commands(self, commands, command_delay=1, command_header=0, done=False):
         """
         Runs commands when logged in via Telnet, returns output
         """
         output = []
-        while self.commands:
+        if isinstance(commands, (str, bytes)):
+            commands = [commands]
+        while commands:
             out = None
-            command = self.commands.pop(0)
+            command = commands.pop(0)
             if not isinstance(command, bytes):
                 command = command.encode()
             try:
@@ -651,13 +547,15 @@ class iTTY:
         return output
 
 
-    async def async_run_unsec_commands(self, command_delay=1, command_header=0, done=False):
+    async def async_run_unsec_commands(self, commands, command_delay=1, command_header=0, done=False):
         """
         Runs commands asynchronously when logged in via Telnet, returns output
         """
         output = []
-        while self.commands:
-            command = self.commands.pop(0)
+        if isinstance(commands, (str, bytes)):
+            commands = [commands]
+        while commands:
+            command = commands.pop(0)
             if not isinstance(command, bytes):
                 command = command.encode()
             out = await self._async_run_unsec_command(command, command_delay)
