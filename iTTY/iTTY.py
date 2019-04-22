@@ -166,7 +166,7 @@ class iTTY:
                 self.os = self.EOS
             elif re.search('Invalid', str(output)):
                 self.os = self.NIAGARA
-            elif re.search('ACSW', str(output)):
+            elif re.search('ACSW', str(output)) and not re.search('Admin', prompt):
                 self.os = self.ASA
             else:
                 self.os = self.IOS
@@ -179,11 +179,15 @@ class iTTY:
                 return
             if re.search('Arista', str(output)):
                 self.os = self.EOS
+                try:
+                    await self.async_enable()
+                except:
+                    return
             elif re.search(' A10 ', str(output)):
                 self.os = self.A10
             else:
                 try:
-                    await self.async_run_commands(['enable', self.password], 3)
+                    await self.async_enable()
                 except:
                     return
                 if re.search(r'(?:^| |\t)IOS(?:$| |\t)', str(output)):
@@ -393,6 +397,53 @@ class iTTY:
             self.session = yield from loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
         except (ConnectionRefusedError, OSError, socket.timeout, BrokenPipeError, EOFError, BrokenConnectionError) as e:
             raise CouldNotConnectError({'telnet': str(e)})
+
+    async def async_enable(self):
+        if self.shell:
+            await self._async_secure_enable()
+        elif self.session:
+            await self._async_unsec_enable()
+
+    async def _async_secure_enable(self):
+        try:
+            if not self.shell.get_transport().is_active():
+                try:
+                    await self.async_secure_login()
+                except CouldNotConnectError:
+                    return
+        except OSError:
+            try:
+                await self.async_secure_login()
+            except CouldNotConnectError:
+                return
+        try:
+            self.shell.send(b'enable\r')
+        except OSError as e:
+            raise BrokenConnectionError(self.host, e)
+        await asyncio.sleep(3)
+        raw = str(self.shell.recv(500000))
+        if re.search('[Pp]assword', raw):
+            try:
+                self.shell.send(self.password + b'\r')
+            except OSError as e:
+                raise BrokenConnectionError(self.host, e)
+            await asyncio.sleep(3)
+            raw = str(self.shell.recv(500000))
+            if str(self.prompt).strip('#>') in str(raw):
+                return
+        raise CouldNotConnectError({'ssh': raw})
+
+    async def _async_unsec_enable(self):
+        pass_regex = re.compile('[Pp]assword:')
+        raw, send_pass = self._async_run_unsec_command('enable', expectation=pass_regex)
+        if send_pass:
+            raw, success = self._async_run_unsec_command(self.password)
+            if success:
+                return
+        raise CouldNotConnectError({'telnet': raw})
+
+
+
 
     def telnet_or_ssh(self):
         """
