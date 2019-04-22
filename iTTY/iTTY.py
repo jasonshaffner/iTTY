@@ -8,6 +8,7 @@ import asyncio
 import re
 import socket
 import warnings
+import traceback
 from functools import partial
 import paramiko
 from paramiko.ssh_exception import SSHException, NoValidConnectionsError, AuthenticationException
@@ -157,7 +158,7 @@ class iTTY:
         elif re.search('.*#', str(prompt)) and not re.search('@', str(prompt)):
             try:
                 output = await self.async_run_commands('show version', 3)
-            except:
+            except Exception as e:
                 return
             if re.search(' A10 ', str(output)):
                 self.os = self.A10
@@ -363,15 +364,17 @@ class iTTY:
         prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
         try:
             await self._async_telnet_login()
-            if not await self._async_expect(login_regex, self.timeout):
+            _, user_prompt = await self._async_expect(login_regex, self.timeout)
+            if not user_prompt:
                 raise CouldNotConnectError({'telnet': 'host did not prompt for username'})
             self.session.write(self.username.encode() + b'\r')
-            if not self._async_expect(b'assword', self.timeout):
+            _, password_prompt = await self._async_expect(b'assword', self.timeout)
+            if not password_prompt:
                 raise CouldNotConnectError({'telnet': 'host did not prompt for password'})
             self.session.write(self.password + b'\r')
-            match = await self._async_expect(prompt_regex, self.timeout)
+            _prompt, match = await self._async_expect(prompt_regex, self.timeout)
             if match:
-                self.prompt = match.split('\n')[-1].strip().lstrip('*')
+                self.prompt = _prompt.split('\n')[-1].strip().lstrip('*')
             else:
                 raise CouldNotConnectError({'telnet': 'Authentication failed'})
             await self.async_set_os(self.prompt)
@@ -574,7 +577,11 @@ class iTTY:
         try:
             self.session.read_very_eager()
             self.session.write(command.strip() + b'\r')
-            return await self._async_expect(command_delay=command_delay)
+            output, match = await self._async_expect(command_delay=command_delay)
+            if not match:
+                self.session.write(b'q\r\r\r')
+                await asyncio.sleep(3)
+            return output
         except (BrokenPipeError, ConnectionResetError, EOFError, AttributeError) as e:
             raise BrokenConnectionError(self.host, e)
 
@@ -597,9 +604,7 @@ class iTTY:
             expectation = re.compile(expectation)
         try:
             _, match, output = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=command_delay))
-            if not match:
-                self._async_run_unsec_command('q', 1)
-            return ansi_escape.sub('', output.decode(errors='ignore'))
+            return ansi_escape.sub('', output.decode(errors='ignore')), match
         except (BrokenPipeError, EOFError, ConnectionResetError, AttributeError) as e:
             raise BrokenConnectionError(self.host, e)
 
