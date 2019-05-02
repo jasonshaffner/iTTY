@@ -537,14 +537,15 @@ class iTTY:
                 except CouldNotConnectError:
                     return
             try:
-                self.shell.send(command.strip() + b'\r')
+                await self._send_sec_command(command.strip() + b'\r')
             except OSError as e:
+                print(e)
                 raise BrokenConnectionError(self.host, e)
             await asyncio.sleep(command_delay)
             if command != self.password:
                 if command_header:
                     output.append(['\n' + _underline(command.decode()), ])
-                raw = self.shell.recv(500000).strip().decode(errors="ignore").split('\n')[1:]
+                raw = await self._recv_sec_output(500000)
                 output.append([ansi_escape.sub('', line) for line in raw])
                 if raw and not (self.prompt.strip('#>') in raw[-1] or 'sername' in raw[-1] or 'assword' in raw[-1]):
                     try:
@@ -555,6 +556,17 @@ class iTTY:
         if done:
             self.logout()
         return output
+
+    @asyncio.coroutine
+    def _send_sec_command(self, command):
+        loop = asyncio.get_event_loop()
+        yield from loop.run_in_executor(None, partial(self.shell.send, command))
+
+    @asyncio.coroutine
+    def _recv_sec_output(self, bits):
+        loop = asyncio.get_event_loop()
+        raw = yield from loop.run_in_executor(None, partial(self.shell.recv, bits))
+        return raw.strip().decode(errors="ignore").split('\n')[1:]
 
 
     def run_unsec_commands(self, commands, command_delay=1, command_header=0, done=False):
