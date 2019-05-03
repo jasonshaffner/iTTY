@@ -117,6 +117,7 @@ async def run_commands(device, report, failed):
                 return
             if not tty.os:
                 print('NO OS', device)
+                failed.append(device)
                 return
             commands = []
             for command in COMMANDS[tty.os]:

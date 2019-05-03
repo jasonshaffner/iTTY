@@ -302,7 +302,7 @@ class iTTY:
                                     look_for_keys=False,\
                                     allow_agent=False,\
                                     timeout=self.timeout))
-            self.shell = yield from loop.run_in_executor(None, self.session.invoke_shell)
+            self.shell = yield from loop.run_in_executor(None, partial(self.session.invoke_shell, width=200, height=200))
         except (SSHException, NoValidConnectionsError, AuthenticationException, EOFError, ValueError, socket.error, socket.timeout) as e:
             self.session = None
             self.shell = None
@@ -541,18 +541,18 @@ class iTTY:
             except OSError as e:
                 print(e)
                 raise BrokenConnectionError(self.host, e)
-            await asyncio.sleep(command_delay)
+            #await asyncio.sleep(command_delay)
             if command != self.password:
                 if command_header:
                     output.append(['\n' + _underline(command.decode()), ])
-                raw = await self._recv_sec_output(500000)
+                raw = await self._receive_sec_output()
                 output.append([ansi_escape.sub('', line) for line in raw])
-                if raw and not (self.prompt.strip('#>') in raw[-1] or 'sername' in raw[-1] or 'assword' in raw[-1]):
-                    try:
-                        self.shell.send('q'.encode() + b'\r')
-                    except OSError:
-                        pass
-                    await asyncio.sleep(3)
+                #if raw and not (self.prompt.strip('#>') in raw[-1] or 'sername' in raw[-1] or 'assword' in raw[-1]):
+                #    try:
+                #        self.shell.send('q'.encode() + b'\r')
+                #    except OSError:
+                #        pass
+                #    await asyncio.sleep(3)
         if done:
             self.logout()
         return output
@@ -562,11 +562,34 @@ class iTTY:
         loop = asyncio.get_event_loop()
         yield from loop.run_in_executor(None, partial(self.shell.send, command))
 
+    async def _receive_sec_output(self):
+        raw = ''
+        i = 0
+        complete = re.compile('|'.join((self.prompt.strip('#>'), '[Uu]sername', '[Pp]assword')))
+        while not self.shell.recv_ready():
+            await asyncio.sleep(0.1)
+        #print('Receiving output')
+        while not raw or not complete.search(raw.splitlines()[-1]):
+            await asyncio.sleep(0.1)
+        #    print(i)
+        #    if i != 0:
+        #        print(f'Need more output! {raw.splitlines()[-1]}')
+        #    i += 1
+        #    print(i)
+            out = await self._recv_sec_output()
+            raw += out
+            if re.search(f'--more--', str(out), flags=re.IGNORECASE):
+                #print('Found "more"')
+                await self._send_sec_command(' ')
+        return raw.strip().split('\n')[1:]
+
     @asyncio.coroutine
-    def _recv_sec_output(self, bits):
+    def _recv_sec_output(self):
         loop = asyncio.get_event_loop()
-        raw = yield from loop.run_in_executor(None, partial(self.shell.recv, bits))
-        return raw.strip().decode(errors="ignore").split('\n')[1:]
+        raw = yield from loop.run_in_executor(None, partial(self.shell.recv, 50000))
+        #print(f'Recvd {raw}')
+        return raw.decode(errors='ignore')
+
 
 
     def run_unsec_commands(self, commands, command_delay=1, command_header=0, done=False):
