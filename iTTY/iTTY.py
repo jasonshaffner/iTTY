@@ -566,6 +566,7 @@ class iTTY:
         raw = ''
         i = 0
         complete = re.compile('|'.join((self.prompt.strip('#>'), '[Uu]sername', '[Pp]assword')))
+        more = re.compile('\-\(?(?:more|less \d+\%)\)?\-|Press any key', flags=re.IGNORECASE)
         while not self.shell.recv_ready():
             await asyncio.sleep(0.1)
         #print('Receiving output')
@@ -578,7 +579,7 @@ class iTTY:
         #    print(i)
             out = await self._recv_sec_output()
             raw += out
-            if re.search(f'--more--', str(out), flags=re.IGNORECASE):
+            if more.search(out):
                 #print('Found "more"')
                 await self._send_sec_command(' ')
         return raw.strip().split('\n')[1:]
