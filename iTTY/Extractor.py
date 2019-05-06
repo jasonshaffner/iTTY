@@ -231,24 +231,27 @@ async def extract_xr_version(tty):
     """
     version = ''
     sp = ''
-    output = await tty.async_run_commands('show version brief | in XR', 10)
+    output = await tty.async_run_commands('show version | in IOS XR', 20)
     if output:
         for out in output:
             for line in out:
                 if re.search('XR', line):
                     try:
-                        version = line.split('Version')[1].split('[')[0].strip()
+                        version = line.split('Version')[1].strip()
+                        if '[' in version:
+                            version = version.split('[')[0].strip()
                     except IndexError:
                         print('IndexError async_extract_xr_version', line)
+                    break
     if not version:
         return
-    output = await tty.async_run_commands('show version brief | in memory', 10)
+    output = await tty.async_run_commands('show version | in memory', 20)
     if output:
         dev_type = str(output)
     else:
         return version
     if re.search('ASR9K', dev_type):
-        output = await tty.async_run_commands('admin show install active summary | in sp', 10)
+        output = await tty.async_run_commands('admin show install active summary | in sp', 20)
         if output:
             for out in output:
                 for line in out:
@@ -265,14 +268,18 @@ async def extract_xr_version(tty):
             else:
                 return version
     else:
-        output = await tty.async_run_commands('admin show install active summary | in CSC | utility wc -l', 10)
+        if re.match('6', version):
+            count = 'count'
+        else:
+            count = 'utility wc -l'
+        output = await tty.async_run_commands(f'admin show install active summary | in CSC | {count}', 20)
         if output:
             ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
             for out in output:
                 for line in out:
                     if not re.search(tty.prompt, line):
                         try:
-                            smu = int(ansi_escape.sub('', line).strip())
+                            smu = int(ansi_escape.sub('', line).strip()) if not count == 'count' else int(ansi_escape.sub('', line).strip().split()[1])
                         except ValueError:
                             smu = None
                             continue
