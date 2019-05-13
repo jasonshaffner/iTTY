@@ -454,27 +454,27 @@ class iTTY:
         elif isinstance(self.session, telnetlib.Telnet):
             return 'Telnet'
 
-    def run_commands(self, commands, command_delay=1, command_header=0, done=False):
+    def run_commands(self, commands, timeout=1, command_header=0, done=False):
         """
         Runs commands stored in commands on remote device
         """
         if self.shell:
-            return self.run_sec_commands(commands, command_delay, command_header=command_header, done=done)
+            return self.run_sec_commands(commands, timeout, command_header=command_header, done=done)
         elif self.session:
-            return self.run_unsec_commands(commands, command_delay, command_header=command_header, done=done)
+            return self.run_unsec_commands(commands, timeout, command_header=command_header, done=done)
 
 
-    async def async_run_commands(self, commands, command_delay=1, command_header=0, done=False):
+    async def async_run_commands(self, commands, timeout=1, command_header=0, done=False):
         """
         Runs commands stored in commands asynchronously on remote device
         """
         if self.shell:
-            return await self.async_run_sec_commands(commands, command_delay, command_header=command_header, done=done)
+            return await self.async_run_sec_commands(commands, timeout, command_header=command_header, done=done)
         elif self.session:
-            return await self.async_run_unsec_commands(commands, command_delay, command_header=command_header, done=done)
+            return await self.async_run_unsec_commands(commands, timeout, command_header=command_header, done=done)
 
 
-    def run_sec_commands(self, commands, command_delay=1, command_header=0, done=False):
+    def run_sec_commands(self, commands, timeout=1, command_header=0, done=False):
         """
         Runs commands when logged in via SSH, returns output
         """
@@ -482,6 +482,7 @@ class iTTY:
         if isinstance(commands, (str, bytes)):
             commands = [commands]
         for command in commands:
+            raw = ''
             if not isinstance(command, bytes):
                 command = command.encode()
             try:
@@ -499,23 +500,40 @@ class iTTY:
                 self.shell.send(command.strip() + b'\r')
             except OSError:
                 return
-            time.sleep(command_delay)
             if command != self.password:
+                raw = self._receive_sec_output(timeout)
+                raw = re.sub(command.decode(errors="ignore"), '', raw).strip()
                 if command_header:
-                    output.append('\n' + _underline(command))
-                raw = self.shell.recv(500000).strip().decode(errors="ignore").split('\n')[1:]
-                output.append([ansi_escape.sub('', line) for line in raw])
-                if raw and not (self.prompt.strip('#>') in raw[-1] or 'sername' in raw[-1] or 'assword' in raw[-1]):
-                    try:
-                        self.shell.send('q'.encode() + b'\r')
-                    except OSError:
-                        pass
-                    time.sleep(3)
+                    output.append('\n' + _underline(command.strip().decode(errors="ignore")))
+                else:
+                    raw = "\n".join((" ".join((self.prompt, command.strip().decode(errors="ignore"))), raw))
+                if not done:
+                    raw += '\n'
+                output.append([ansi_escape.sub('', line) for line in raw.splitlines()])
         if done:
             self.logout()
         return output
 
-    async def async_run_sec_commands(self, commands, command_delay=1, command_header=0, done=False):
+    def _receive_sec_output(self, timeout):
+        raw = ''
+        complete = re.compile('|'.join((self.prompt.strip('#>'), '[Uu]sername', '[Pp]assword')))
+        more = re.compile('\-\(?(?:more|less \d+\%)\)?\-|Press any key', flags=re.IGNORECASE)
+        while not raw or not complete.search(str(raw.splitlines()[1:])):
+            while not self.shell.recv_ready() and timeout > 0:
+                time.sleep(0.1)
+                timeout -= 0.1
+            out = self.shell.recv(50000).decode(errors='ignore')
+            raw += out
+            if timeout <= 0:
+                self.shell.send('\x03')
+                break
+            if more.search(out):
+                self.shell.send(b' ')
+            time.sleep(0.1)
+            #print(f'Raw: {raw}')
+        return "\n".join([line for line in raw.splitlines() if not re.match(self.prompt, line)])
+
+    async def async_run_sec_commands(self, commands, timeout=120, command_header=0, done=False):
         """
         Runs commands asynchronously when logged in via SSH, returns output
         """
@@ -523,77 +541,86 @@ class iTTY:
         if isinstance(commands, (str, bytes)):
             commands = [commands]
         for command in commands:
+            raw = ''
             if not isinstance(command, bytes):
                 command = command.encode()
             try:
                 if not self.shell.get_transport().is_active():
                     try:
                         await self.async_secure_login()
-                    except CouldNotConnectError:
-                        return
-            except OSError:
+                    except CouldNotConnectError as e:
+                        raise BrokenConnectionError(self.host, e)
+            except OSError as e:
                 try:
                     await self.async_secure_login()
                 except CouldNotConnectError:
-                    return
+                    raise BrokenConnectionError(self.host, e)
             try:
-                await self._send_sec_command(command.strip() + b'\r')
+                await self._async_send_sec_command(command.strip() + b'\r')
             except OSError as e:
-                print(e)
+                print(self.host, e)
                 raise BrokenConnectionError(self.host, e)
-            #await asyncio.sleep(command_delay)
             if command != self.password:
+                raw = await self._async_receive_sec_output(timeout)
+                if len(raw) > 1 and not raw[0]:
+                    raw = raw[1:]
+        #        print('Raw', raw)
                 if command_header:
-                    output.append(['\n' + _underline(command.decode()), ])
-                raw = await self._receive_sec_output()
-                output.append([ansi_escape.sub('', line) for line in raw])
-                #if raw and not (self.prompt.strip('#>') in raw[-1] or 'sername' in raw[-1] or 'assword' in raw[-1]):
-                #    try:
-                #        self.shell.send('q'.encode() + b'\r')
-                #    except OSError:
-                #        pass
-                #    await asyncio.sleep(3)
+                    output.append('\n' + _underline(command.strip().decode(errors="ignore")))
+                else:
+        #            print('Inserting into raw')
+                    raw.insert(0, " ".join((self.prompt, command.strip().decode(errors="ignore"))))
+        #            print('Done inserting into raw')
+                if not done:
+        #            print('Not done, appending newline')
+                    raw.append('\n')
+        #            print('Done appending newline')
+        #        print('Appending raw to output')
+                output.append(raw)
+        #        print('Done appending raw to output')
         if done:
             self.logout()
         return output
 
     @asyncio.coroutine
-    def _send_sec_command(self, command):
+    def _async_send_sec_command(self, command):
         loop = asyncio.get_event_loop()
+        if not isinstance(command, bytes):
+            command = command.encode()
         yield from loop.run_in_executor(None, partial(self.shell.send, command))
 
-    async def _receive_sec_output(self):
+    async def _async_receive_sec_output(self, timeout):
         raw = ''
-        i = 0
         complete = re.compile('|'.join((self.prompt.strip('#>'), '[Uu]sername', '[Pp]assword')))
         more = re.compile('\-\(?(?:more|less \d+\%)\)?\-|Press any key', flags=re.IGNORECASE)
-        while not self.shell.recv_ready():
-            await asyncio.sleep(0.1)
-        #print('Receiving output')
-        while not raw or not complete.search(raw.splitlines()[-1]):
-            await asyncio.sleep(0.1)
-        #    print(i)
-        #    if i != 0:
-        #        print(f'Need more output! {raw.splitlines()[-1]}')
-        #    i += 1
-        #    print(i)
-            out = await self._recv_sec_output()
+        while not raw or not complete.search(str(raw.splitlines()[1:])):
+            #print(f'Not complete: {raw}')
+            while not self.shell.recv_ready() and timeout > 0:
+            #    print(f'Shell not receive ready, timeout: {timeout}')
+                await asyncio.sleep(0.1)
+                timeout -= 0.1
+            if timeout <= 0:
+                await self._async_send_sec_command('\x03')
+                break
+            out = await self._async_recv_sec_output()
             raw += out
             if more.search(out):
-                #print('Found "more"')
-                await self._send_sec_command(' ')
-        return raw.strip().split('\n')[1:]
+                await self._async_send_sec_command(' ')
+            await asyncio.sleep(0.1)
+            #print(f'Raw:\n{raw}')
+        #print('Done with receiving output')
+        #print("\n".join(raw.splitlines()[2:-1]))
+        return [line for line in raw.splitlines() if not re.match(self.prompt, line)][1:]
 
     @asyncio.coroutine
-    def _recv_sec_output(self):
+    def _async_recv_sec_output(self):
         loop = asyncio.get_event_loop()
         raw = yield from loop.run_in_executor(None, partial(self.shell.recv, 50000))
-        #print(f'Recvd {raw}')
-        return raw.decode(errors='ignore')
+        return ansi_escape.sub('', raw.decode(errors='ignore'))
 
 
 
-    def run_unsec_commands(self, commands, command_delay=1, command_header=0, done=False):
+    def run_unsec_commands(self, commands, timeout=1, command_header=0, done=False):
         """
         Runs commands when logged in via Telnet, returns output
         """
@@ -611,14 +638,16 @@ class iTTY:
                 self.unsecure_login()
             self.session.write((command.strip() + b'\r'))
             try:
-                _, match, out = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+                _, match, out = self.session.expect([re.compile(self.prompt.encode()), ], timeout)
             except (EOFError, BrokenPipeError, ConnectionResetError):
                 self.unsecure_login()
                 self.session.write((command.strip() + b'\r'))
                 try:
-                    _, match, out = self.session.expect([re.compile(self.prompt.encode()), ], command_delay)
+                    _, match, out = self.session.expect([re.compile(self.prompt.encode()), ], timeout)
                 except (EOFError, BrokenPipeError, ConnectionResetError) as e:
                     raise BrokenConnectionError(self.host, e)
+            if out:
+                out = re.sub(command.decode(errors="ignore"), '', out).strip()
             if not match:
                 self.session.write((b'q\r'))
                 time.sleep(1)
@@ -626,18 +655,20 @@ class iTTY:
                     self.session.read_very_eager()
                 except (EOFError, BrokenPipeError, ConnectionResetError) as e:
                     pass
-            time.sleep(command_delay)
             if out and (str(command) != str(self.password) and str(command) != str(self.username)):
-                out = ansi_escape.sub('', out.decode(errors='ignore'))
                 if command_header:
-                    output.append(['\n' + _underline(command.decode()), ])
-                output.append(out.split('\n')[1:])
+                    output.append("\n" + _underline(command.strip().decode(errors="ignore")))
+                else:
+                    out = "\n".join((" ".join((self.prompt, command.strip().decode(errors="ignore"))), out))
+                if not done:
+                    out += '\n'
+                output.append([ansi_escape.sub('', line) for line in out.splitlines()])
         if done:
             self.logout()
         return output
 
 
-    async def async_run_unsec_commands(self, commands, command_delay=1, command_header=0, done=False):
+    async def async_run_unsec_commands(self, commands, timeout=120, command_header=0, done=False):
         """
         Runs commands asynchronously when logged in via Telnet, returns output
         """
@@ -648,23 +679,28 @@ class iTTY:
             command = commands.pop(0)
             if not isinstance(command, bytes):
                 command = command.encode()
-            out = await self._async_run_unsec_command(command, command_delay)
+            out = await self._async_run_unsec_command(command, timeout)
             if out and (str(command) != str(self.password) and str(command) != str(self.username)):
+                out = re.sub(command.decode(errors="ignore"), '', out).strip()
                 if command_header:
-                    output.append([''.join(('\n', _underline(command))), ])
-                output.append(out.split('\n')[1:])
+                    output.append("\n" + _underline(command.strip().decode(errors="ignore")))
+                else:
+                    out = "\n".join((' '.join((self.prompt, command.strip().decode(errors="ignore"))), out))
+                if not done:
+                    out += '\n'
+                output.append([ansi_escape.sub('', line) for line in out.splitlines()])
         if done:
             self.logout()
         return output
 
-    async def _async_run_unsec_command(self, command, command_delay):
+    async def _async_run_unsec_command(self, command, timeout=120):
         """
         Helper to async_run_unsec_commands, writes and returns output of commands
         """
         try:
             self.session.read_very_eager()
             self.session.write(command.strip() + b'\r')
-            output, match = await self._async_expect(command_delay=command_delay)
+            output, match = await self._async_expect(timeout=timeout)
             if not match:
                 self.session.write(b'q\r\r\r')
                 await asyncio.sleep(3)
@@ -674,7 +710,7 @@ class iTTY:
 
 
     @asyncio.coroutine
-    def _async_expect(self, expectation=None, command_delay=1):
+    def _async_expect(self, expectation=None, timeout=120):
         """
         Helper to async_run_unsec_commands, performs "expect"
         """
@@ -690,8 +726,9 @@ class iTTY:
                 expectation = expectation.encode()
             expectation = re.compile(expectation)
         try:
-            _, match, output = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=command_delay))
-            return ansi_escape.sub('', output.decode(errors='ignore')), match
+            _, match, output = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=timeout))
+            output = output.decode(errors='ignore')
+            return "\n".join([line for line in output.splitlines() if not re.match(self.prompt, line)]), match
         except (BrokenPipeError, EOFError, ConnectionResetError, AttributeError) as e:
             raise BrokenConnectionError(self.host, e)
 

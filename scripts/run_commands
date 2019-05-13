@@ -148,7 +148,7 @@ async def run_commands(device, report, failed):
                             failed.append(device)
                             return
                 commands.append(command)
-            output = await tty.async_run_commands(commands, command_delay=10, command_header=1)
+            output = await tty.async_run_commands(commands, timeout=10, command_header=1)
             if not tty.sift_output(output, tty.prompt, '-', commands):
                 print('No output from ', device)
                 failed.append(device)
@@ -163,9 +163,9 @@ async def run_commands(device, report, failed):
         for line in output:
             if line:
                 if re.search("|".join(COMMANDS[tty.os]), str(line)):
-                    command = str(line).strip('\n-\ ')
+                    command = str(line).strip()
                 else:
-                    grep.append(','.join((device, command, str(line).strip())))
+                    grep.append(','.join((device, command.strip(), str(line).strip())))
         report.append(grep)
     else:
         report.append(('\n\n', StringUtils.pad(device, 10, '-'), '\n'.join(line for line in tty.sift_output(output, tty.prompt))))
