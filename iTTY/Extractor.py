@@ -1,4 +1,5 @@
 import re
+import traceback
 from . import iTTY
 
 ip_regex = re.compile('[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
@@ -235,7 +236,7 @@ async def extract_xr_version(tty):
     if output:
         for out in output:
             for line in out:
-                if re.search('XR', line):
+                if re.search('XR', line) and not re.search('show', line):
                     try:
                         version = line.split('Version')[1].strip()
                         if '[' in version:
@@ -255,7 +256,7 @@ async def extract_xr_version(tty):
         if output:
             for out in output:
                 for line in out:
-                    if not re.search(tty.prompt, line):
+                    if not re.search(tty.prompt, line) and not re.search('show', line):
                         try:
                             sp = line.split('-')[-2].split('.')[-1]
                             if re.search('sp', sp):
@@ -277,12 +278,15 @@ async def extract_xr_version(tty):
             ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
             for out in output:
                 for line in out:
-                    if not re.search(tty.prompt, line):
+                    if not re.search(tty.prompt, line) and not re.search('show', line):
                         try:
                             smu = int(ansi_escape.sub('', line).strip()) if not count == 'count' else int(ansi_escape.sub('', line).strip().split()[1])
                         except ValueError:
                             smu = None
                             continue
+                        except IndexError:
+                            print(line, traceback.format_exc())
+                            smu = None
                         if smu:
                             return version + '-smu' + str(smu)
                         else:

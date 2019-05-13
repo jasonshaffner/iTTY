@@ -37,6 +37,8 @@ class iTTY:
     A10 = 8
     AVOCENT = 9
     NIAGARA = 10
+    NXOS = 11
+    IOSXE = 12
 
 
     def __init__(self, **kwargs):
@@ -115,6 +117,10 @@ class iTTY:
                 self.os = self.NIAGARA
             elif re.search('ACSW', str(output)):
                 self.os = self.ASA
+            elif re.search('NX-OS', str(output)):
+                self.os = self.NXOS
+            elif re.search('IOS-XE', str(output)):
+                self.os = self.IOSXE
             else:
                 self.os = self.IOS
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
@@ -133,7 +139,11 @@ class iTTY:
                     self.run_commands(['enable', self.password], 3)
                 except BrokenConnectionError:
                     raise
-                if re.search(r'(?:^| |\t)IOS(?:$| |\t)', str(output)):
+                if re.search('NX-OS', str(output)):
+                    self.os = self.NXOS
+                elif re.search('IOS-XE', str(output)):
+                    self.os = self.IOSXE
+                elif re.search(r'(?:^| |\t)IOS(?:$| |\t)', str(output)):
                     self.os = self.IOS
                 else:
                     self.os = self.ASA
@@ -168,6 +178,10 @@ class iTTY:
                 self.os = self.NIAGARA
             elif re.search('ACSW', str(output)) and not re.search('Admin', prompt):
                 self.os = self.ASA
+            elif re.search('NX-OS', str(output)):
+                self.os = self.NXOS
+            elif re.search('IOS-XE', str(output)):
+                self.os = self.IOSXE
             else:
                 self.os = self.IOS
         elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
@@ -190,7 +204,11 @@ class iTTY:
                     await self.async_enable()
                 except:
                     return
-                if re.search(r'(?:^| |\t)IOS(?:$| |\t)', str(output)):
+                if re.search('NX-OS', str(output)):
+                    self.os = self.NXOS
+                elif re.search('IOS-XE', str(output)):
+                    self.os = self.IOSXE
+                elif re.search(r'(?:^| |\t)IOS(?:$| |\t)', str(output)):
                     self.os = self.IOS
                 else:
                     self.os = self.ASA
@@ -201,7 +219,7 @@ class iTTY:
             self.os = self.AVOCENT
             if re.search('refresh \:', str(prompt)):
                 self.prompt = '--:- / cli->'
-                await self.async_run_commands('q', 3)
+                await self.async_run_commands(' ', 3)
         return self.os
 
     def login(self, **kwargs):
@@ -378,7 +396,7 @@ class iTTY:
             self.session.write(self.password + b'\r')
             _prompt, match = await self._async_expect(prompt_regex, self.timeout)
             if match:
-                self.prompt = _prompt.split('\n')[-1].strip().lstrip('*')
+                self.prompt = match.group(0).decode(errors="ignore")
             else:
                 raise CouldNotConnectError({'telnet': 'Authentication failed'})
             await self.async_set_os(self.prompt)
@@ -561,23 +579,19 @@ class iTTY:
                 print(self.host, e)
                 raise BrokenConnectionError(self.host, e)
             if command != self.password:
-                raw = await self._async_receive_sec_output(timeout)
-                if len(raw) > 1 and not raw[0]:
+                try:
+                    raw = await self._async_receive_sec_output(timeout)
+                except socket.error as e:
+                    raise BrokenConnectionError(self.host, e)
+                while len(raw) > 1 and not raw[0]:
                     raw = raw[1:]
-        #        print('Raw', raw)
                 if command_header:
                     output.append('\n' + _underline(command.strip().decode(errors="ignore")))
                 else:
-        #            print('Inserting into raw')
                     raw.insert(0, " ".join((self.prompt, command.strip().decode(errors="ignore"))))
-        #            print('Done inserting into raw')
                 if not done:
-        #            print('Not done, appending newline')
                     raw.append('\n')
-        #            print('Done appending newline')
-        #        print('Appending raw to output')
                 output.append(raw)
-        #        print('Done appending raw to output')
         if done:
             self.logout()
         return output
@@ -594,9 +608,7 @@ class iTTY:
         complete = re.compile('|'.join((self.prompt.strip('#>'), '[Uu]sername', '[Pp]assword')))
         more = re.compile('\-\(?(?:more|less \d+\%)\)?\-|Press any key', flags=re.IGNORECASE)
         while not raw or not complete.search(str(raw.splitlines()[1:])):
-            #print(f'Not complete: {raw}')
             while not self.shell.recv_ready() and timeout > 0:
-            #    print(f'Shell not receive ready, timeout: {timeout}')
                 await asyncio.sleep(0.1)
                 timeout -= 0.1
             if timeout <= 0:
@@ -607,9 +619,6 @@ class iTTY:
             if more.search(out):
                 await self._async_send_sec_command(' ')
             await asyncio.sleep(0.1)
-            #print(f'Raw:\n{raw}')
-        #print('Done with receiving output')
-        #print("\n".join(raw.splitlines()[2:-1]))
         return [line for line in raw.splitlines() if not re.match(self.prompt, line)][1:]
 
     @asyncio.coroutine
@@ -679,16 +688,17 @@ class iTTY:
             command = commands.pop(0)
             if not isinstance(command, bytes):
                 command = command.encode()
-            out = await self._async_run_unsec_command(command, timeout)
-            if out and (str(command) != str(self.password) and str(command) != str(self.username)):
-                out = re.sub(command.decode(errors="ignore"), '', out).strip()
+            raw = await self._async_run_unsec_command(command, timeout)
+            if raw and (str(command) != str(self.password) and str(command) != str(self.username)):
+                while len(raw) > 1 and not raw[0]:
+                    raw = raw[1:]
                 if command_header:
                     output.append("\n" + _underline(command.strip().decode(errors="ignore")))
                 else:
-                    out = "\n".join((' '.join((self.prompt, command.strip().decode(errors="ignore"))), out))
+                    raw.insert(0, ' '.join((self.prompt, command.strip().decode(errors="ignore"))))
                 if not done:
-                    out += '\n'
-                output.append([ansi_escape.sub('', line) for line in out.splitlines()])
+                    raw.append('\n')
+                output.append(raw)
         if done:
             self.logout()
         return output
@@ -727,8 +737,11 @@ class iTTY:
             expectation = re.compile(expectation)
         try:
             _, match, output = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=timeout))
-            output = output.decode(errors='ignore')
-            return "\n".join([line for line in output.splitlines() if not re.match(self.prompt, line)]), match
+            output = ansi_escape.sub('', output.decode(errors='ignore'))
+            if self.prompt:
+                return [line for line in output.splitlines() if not re.match(self.prompt, line)], match
+            else:
+                return output.splitlines(), match
         except (BrokenPipeError, EOFError, ConnectionResetError, AttributeError) as e:
             raise BrokenConnectionError(self.host, e)
 
