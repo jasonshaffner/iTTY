@@ -39,6 +39,8 @@ async def extract_hostname(tty):
         return await extract_f5_hostname(tty)
     elif tty.os == 8:
         return await extract_a10_hostname(tty)
+    elif tty.os == 9:
+        return await extract_avocent_hostname(tty)
 
 async def extract_contact(tty):
     """
@@ -618,7 +620,8 @@ async def extract_avocent_hostname(tty):
     if output:
         for out in output:
             for line in out:
-                return line.split('/')[0]
+                if not re.search('cli->', line):
+                    return line.split('/')[0]
 
 async def extract_niagara_hostname(tty):
     """

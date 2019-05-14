@@ -219,7 +219,7 @@ class iTTY:
             self.os = self.AVOCENT
             if re.search('refresh \:', str(prompt)):
                 self.prompt = '--:- / cli->'
-                await self.async_run_commands(' ', 3)
+                await self.async_run_commands('q', 3)
         return self.os
 
     def login(self, **kwargs):
