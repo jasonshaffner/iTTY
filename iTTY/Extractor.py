@@ -405,7 +405,7 @@ async def extract_xr_model(tty):
     output = await tty.async_run_commands(['terminal length 0', 'show version brief | in "memory|hassis"'], 10)
     if re.search('CRS', str(output)):
         try:
-            return tty.sift_output(output, [tty.username, tty.password, tty.prompt])[0].split()[1]
+            return tty.sift_output(output, [tty.username, tty.password, tty.prompt, 'show'])[0].split()[1]
         except IndexError as err:
             print(f'extract_xr_model IndexError: {str(output)}: sifted: {tty.sift_output(output, [tty.username, tty.password, tty.prompt])}')
     elif re.search('ASR', str(output)):
