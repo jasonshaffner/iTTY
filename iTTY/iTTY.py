@@ -167,7 +167,7 @@ class iTTY:
             self.os = self.XR
         elif re.search('.*#', str(prompt)) and not re.search('@', str(prompt)):
             try:
-                output = await self.async_run_commands('show version', 3)
+                output = await self.async_run_commands('show version', 10)
             except Exception as e:
                 return
             if re.search(' A10 ', str(output)):
@@ -188,7 +188,7 @@ class iTTY:
             self.os = self.JUNOS
         elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)) and not re.search('->', str(prompt)):
             try:
-                output = await self.async_run_commands('show version', 3)
+                output = await self.async_run_commands('show version', 10)
             except:
                 return
             if re.search('Arista', str(output)):
@@ -435,20 +435,15 @@ class iTTY:
             except CouldNotConnectError:
                 return
         try:
-            self.shell.send(b'enable\r')
+            raw = await self.async_run_sec_commands('enable')
         except OSError as e:
             raise BrokenConnectionError(self.host, e)
-        await asyncio.sleep(3)
-        raw = str(self.shell.recv(500000))
-        if re.search('[Pp]assword', raw):
+        if re.search('[Pp]assword', str(raw)):
             try:
-                self.shell.send(self.password + b'\r')
+                raw = await self.async_run_sec_commands(self.password)
             except OSError as e:
                 raise BrokenConnectionError(self.host, e)
-            await asyncio.sleep(3)
-            raw = str(self.shell.recv(500000))
-            if str(self.prompt).strip('#>') in str(raw):
-                return
+            return
         raise CouldNotConnectError({'ssh': raw})
 
     async def _async_unsec_enable(self):
@@ -534,8 +529,8 @@ class iTTY:
 
     def _receive_sec_output(self, timeout):
         raw = ''
-        complete = re.compile('|'.join((self.prompt.strip('#>'), '[Uu]sername', '[Pp]assword')))
-        more = re.compile('\-\(?(?:more|less \d+\%)\)?\-|Press any key', flags=re.IGNORECASE)
+        complete = re.compile('|'.join((self.prompt, '[Uu]sername', '[Pp]assword')))
+        more = re.compile(r'-(?: |\()?(?:more|less \d+\%)(?:\(| )?|Press any key', flags=re.IGNORECASE)
         while not raw or not complete.search(str(raw.splitlines()[1:])):
             while not self.shell.recv_ready() and timeout > 0:
                 time.sleep(0.1)
@@ -548,7 +543,6 @@ class iTTY:
             if more.search(out):
                 self.shell.send(b' ')
             time.sleep(0.1)
-            #print(f'Raw: {raw}')
         return "\n".join([line for line in raw.splitlines() if not re.match(self.prompt, line)])
 
     async def async_run_sec_commands(self, commands, timeout=120, command_header=0, done=False):
@@ -605,8 +599,8 @@ class iTTY:
 
     async def _async_receive_sec_output(self, timeout):
         raw = ''
-        complete = re.compile('|'.join((self.prompt.strip('#>'), '[Uu]sername', '[Pp]assword')))
-        more = re.compile('\-\(?(?:more|less \d+\%)\)?\-|Press any key', flags=re.IGNORECASE)
+        complete = re.compile('|'.join((self.prompt, '[Uu]sername', '[Pp]assword')))
+        more = re.compile(r'-(?: |\()?(?:more|less \d+\%)(?:\( )?|Press any key', flags=re.IGNORECASE)
         while not raw or not complete.search(str(raw.splitlines()[1:])):
             while not self.shell.recv_ready() and timeout > 0:
                 await asyncio.sleep(0.1)
