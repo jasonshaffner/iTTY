@@ -405,9 +405,9 @@ async def extract_xr_model(tty):
     output = await tty.async_run_commands(['terminal length 0', 'show version brief | in "memory|hassis"'], 10)
     if re.search('CRS', str(output)):
         try:
-            return tty.sift_output(output, [tty.username, tty.password, tty.prompt, 'show'])[0].split()[1]
+            return tty.sift_output(output, tty.username, tty.password, tty.prompt)[0].split()[1]
         except IndexError as err:
-            print(f'extract_xr_model IndexError: {str(output)}: sifted: {tty.sift_output(output, [tty.username, tty.password, tty.prompt])}')
+            print(f'extract_xr_model IndexError: {str(output)}: sifted: {tty.sift_output(output, tty.username, tty.password, tty.prompt)}')
     elif re.search('ASR', str(output)):
         for out in output:
             for line in out:
@@ -978,27 +978,27 @@ async def extract_a10_trap_collector(tty):
 async def extract_alu_acl(tty, acl_name):
     output = await tty.async_run_commands(f'admin display-config | match "prefix-list \"{acl_name}\"" context all', 10)
     if output:
-        return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
+        return tty.sift_output(output, tty.username, tty.password, tty.prompt)
 
 async def extract_xr_acl(tty, acl_name):
     output = await tty.async_run_commands(f'show access-list {acl-name}', 10)
     if output:
-        return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
+        return tty.sift_output(output, tty.username, tty.password, tty.prompt)
 
 async def extract_ios_acl(tty, acl_name):
     output = await tty.async_run_commands(f'show ip access-list {acl-name}', 10)
     if output:
-        return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
+        return tty.sift_output(output, tty.username, tty.password, tty.prompt)
 
 async def extract_junos_acl(tty, acl_name):
     output = await tty.async_run_commands(f'show configuration firewall | display set | match {acl-name}', 10)
     if output:
-        return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
+        return tty.sift_output(output, tty.username, tty.password, tty.prompt)
 
 async def extract_arista_acl(tty, acl_name):
     output = await tty.async_run_commands(f'show ip access-list {acl-name}', 10)
     if output:
-        return tty.sift_output(output, [tty.username, tty.password, tty.prompt])
+        return tty.sift_output(output, tty.username, tty.password, tty.prompt)
 
 
 async def extract_alu_interface_v4_addresses(tty, interface):
