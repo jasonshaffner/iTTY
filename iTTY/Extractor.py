@@ -10,7 +10,7 @@ async def extract_make(tty):
     """
     if tty.os == 1:
         return 'alcatel'
-    elif tty.os in (2, 3, 5):
+    elif tty.os in (2, 3, 5, 11, 12):
         return 'cisco'
     elif tty.os == 4:
         return 'juniper'
@@ -31,7 +31,7 @@ async def extract_hostname(tty):
     """
     if tty.os == 1:
         return await extract_alu_hostname(tty)
-    elif tty.os in (2, 3, 5, 7):
+    elif tty.os in (2, 3, 5, 7, 11, 12):
         return await extract_cisco_hostname(tty)
     elif tty.os == 4:
         return await extract_junos_hostname(tty)
@@ -48,7 +48,7 @@ async def extract_contact(tty):
     """
     if tty.os == 1:
         return await extract_alu_contact(tty)
-    elif tty.os in (2, 3, 5, 7):
+    elif tty.os in (2, 3, 5, 7, 11, 12):
         return await extract_cisco_contact(tty)
     elif tty.os == 4:
         return await extract_junos_contact(tty)
@@ -63,7 +63,7 @@ async def extract_location(tty):
     """
     if tty.os == 1:
         return await extract_alu_location(tty)
-    elif tty.os in (2, 3, 5, 7):
+    elif tty.os in (2, 3, 5, 7, 11, 12):
         return await extract_cisco_location(tty)
     elif tty.os == 4:
         return await extract_junos_location(tty)
@@ -80,7 +80,7 @@ async def extract_version(tty):
         return await extract_alu_version(tty)
     elif tty.os == 2:
         return await extract_xr_version(tty)
-    elif tty.os == 3:
+    elif tty.os in (3, 11, 12):
         return await extract_ios_version(tty)
     elif tty.os == 4:
         return await extract_junos_version(tty)
@@ -103,7 +103,7 @@ async def extract_model(tty):
         return await extract_alu_model(tty)
     elif tty.os == 2:
         return await extract_xr_model(tty)
-    elif tty.os == 3:
+    elif tty.os in (3, 11, 12):
         return await extract_ios_model(tty)
     elif tty.os == 4:
         return await extract_junos_model(tty)
@@ -126,7 +126,7 @@ async def extract_series(tty):
         return await extract_alu_series(tty)
     elif tty.os == 2:
         return await extract_xr_series(tty)
-    elif tty.os == 3:
+    elif tty.os in (3, 11, 12):
         return await extract_ios_series(tty)
     elif tty.os == 4:
         return await extract_junos_series(tty)
@@ -147,7 +147,7 @@ async def extract_syslog_server(tty):
         return await extract_alu_syslog_server(tty)
     elif tty.os == 2:
         return await extract_xr_syslog_server(tty)
-    elif tty.os == 3:
+    elif tty.os in (3, 11, 12):
         return await extract_ios_syslog_server(tty)
     elif tty.os == 4:
         return await extract_junos_syslog_server(tty)
@@ -168,7 +168,7 @@ async def extract_trap_collector(tty):
         return await extract_alu_trap_collector(tty)
     elif tty.os == 2:
         return await extract_xr_trap_collector(tty)
-    elif tty.os == 3:
+    elif tty.os in (3, 11, 12):
         return await extract_ios_trap_collector(tty)
     elif tty.os == 4:
         return await extract_junos_trap_collector(tty)
@@ -189,7 +189,7 @@ async def extract_acl(tty, acl_name):
         return await extract_alu_acl(tty, acl_name)
     elif tty.os == 2:
         return await extract_xr_acl(tty, acl_name)
-    elif tty.os == 3:
+    elif tty.os in (3, 11, 12):
         return await extract_ios_acl(tty, acl_name)
     elif tty.os == 4:
         return await extract_junos_acl(tty, acl_name)
@@ -208,7 +208,7 @@ async def extract_interface_v4_addresses(tty, interface=None):
     """
     if tty.os == 1:
         return await extract_alu_interface_v4_addresses(tty, interface)
-    elif tty.os in [2, 3, 7]:
+    elif tty.os in (2, 3, 7, 11, 12):
         return await extract_cisco_interface_v4_addresses(tty, interface)
     elif tty.os == 4:
         return await extract_junos_interface_v4_addresses(tty, interface)
@@ -302,7 +302,7 @@ async def extract_ios_version(tty):
     if output:
         for out in output:
             for line in out:
-                if re.search('Version', line) and not re.search('show|LGPL|ID', line):
+                if re.search('Version', line) and not re.search('show|LGPL|ID|SW Image', line):
                     try:
                         version = line.split('Version')[1].split(',')[0].split()[0].strip()
                         return version
