@@ -436,9 +436,8 @@ async def extract_ios_model(tty):
     if output:
         for out in output:
             for line in out:
-                if re.search('memory.', line) \
-                    and (not re.search('show', line)\
-                    or not re.search('ermission', line)):
+                if re.search('memory\.', line) \
+                    and not re.search('show|ermission|reload', line):
                     return line.split()[1]
                 elif re.search('Nexus.*Chassis', line):
                     if re.search('Nexus\d{1,4}', line):
