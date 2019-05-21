@@ -922,7 +922,7 @@ async def extract_asa_series(tty):
                 try:
                     if re.search('Encryption hardware device', str(line)):
                         return line.split(':')[1].split()[1]
-                    elif re.search('DESCR:', line):
+                    elif re.search('DESCR:', line) and not re.search('show', line):
                         return line.split('DESCR:')[1].split()[0].strip('"')
                 except IndexError:
                     print(f'extract_asa_series: IndexError: {line}')
