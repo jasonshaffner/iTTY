@@ -124,7 +124,6 @@ async def run_commands(device, report, failed):
                 print('NO OS', device)
                 failed.append(device)
                 return
-            prompt = tty.prompt
             commands = []
             for command in COMMANDS[tty.os]:
                 if re.search('<.*>', command):
@@ -164,28 +163,29 @@ async def run_commands(device, report, failed):
         print('Could not connect to', device)
         failed.append(device)
         return
+    output = tty.sift_output(output, [])
+    print(output)
     prompt = re.compile("".join((tty.prompt.strip('#>'), '([\(>]config.*(\))?)?', '(?:#|>|$| )')))
     if GREP:
         command_regex = re.compile('|'.join((re.sub(r'\|', '\\|', c.strip()) for c in COMMANDS[tty.os])))
         grep = []
-        for out in output:
-            for line in out:
-                if not line.strip():
+        for line in output:
+            if not line.strip():
+                continue
+            if command_regex.search(str(line)):
+                command = command_regex.search(str(line)).group(0)
+            if CONFIG_MODE:
+                grep.append(','.join((device, command.strip(), str(line).strip())))
+            else:
+                if prompt.match(line):
                     continue
-                if command_regex.search(str(line)):
-                    command = command_regex.search(str(line)).group(0)
-                if CONFIG_MODE:
-                    grep.append(','.join((device, command.strip(), str(line).strip())))
-                else:
-                    if prompt.match(line):
-                        continue
-                    grep.append(','.join((device, command.strip(), str(line).strip())))
+                grep.append(','.join((device, command.strip(), str(line).strip())))
         report.append(grep)
     else:
         if CONFIG_MODE:
-            report.append(('\n\n', StringUtils.pad(device, 10, '-'), '\n'.join(line for out in output for line in out)))
+            report.append(('\n\n', StringUtils.pad(device, 10, '-'), '\n'.join(line for line in output)))
         else:
-            report.append(('\n\n', StringUtils.pad(device, 10, '-'), '\n'.join(line for out in output for line in out if not prompt.match(line))))
+            report.append(('\n\n', StringUtils.pad(device, 10, '-'), '\n'.join(line for line in output if not prompt.match(line))))
 
 
 if __name__ == '__main__':
