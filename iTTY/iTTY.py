@@ -380,21 +380,24 @@ class iTTY:
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
         self.verify_login_parameters()
+        if not isinstance(self.username, bytes):
+            self.username = self.username.encode()
         if not isinstance(self.password, bytes):
             self.password = self.password.encode()
         login_regex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
+        password_regex = re.compile(b'[Pp]assword')
         prompt_regex = re.compile(b"|".join([b'[AB]:.*#', b'CPU.*#', b'.*#', b'@.*>']))
         try:
             await self._async_telnet_login()
-            _, user_prompt = await self._async_expect(login_regex, self.timeout)
+            _, user_prompt = await self._async_recv_unsec_output(expectation=login_regex, timeout=self.timeout)
             if not user_prompt:
                 raise CouldNotConnectError({'telnet': 'host did not prompt for username'})
-            self.session.write(self.username.encode() + b'\r')
-            _, password_prompt = await self._async_expect(b'assword', self.timeout)
+            await self._async_send_unsec_command(self.username + b'\r')
+            _, password_prompt = await self._async_recv_unsec_output(expectation=password_regex, timeout=self.timeout)
             if not password_prompt:
                 raise CouldNotConnectError({'telnet': 'host did not prompt for password'})
-            self.session.write(self.password + b'\r')
-            _prompt, match = await self._async_expect(prompt_regex, self.timeout)
+            await self._async_send_unsec_command(self.password + b'\r')
+            _prompt, match = await self._async_recv_unsec_output(expectation=prompt_regex, timeout=self.timeout)
             if match:
                 self.prompt = match.group(0).decode(errors="ignore")
             else:
@@ -517,7 +520,7 @@ class iTTY:
                 raw = self._receive_sec_output(timeout)
                 raw = re.sub(command.decode(errors="ignore"), '', raw).strip()
                 if command_header:
-                    output.append('\n' + _underline(command.strip().decode(errors="ignore")))
+                    raw = '\n'.join((_underline(command.strip().decode(errors="ignore")), raw))
                 else:
                     raw = "\n".join((" ".join((self.prompt, command.strip().decode(errors="ignore"))), raw))
                 if not done:
@@ -529,9 +532,9 @@ class iTTY:
 
     def _receive_sec_output(self, timeout):
         raw = ''
-        complete = re.compile('|'.join((self.prompt, '[Uu]sername', '[Pp]assword')))
+        complete = re.compile('|'.join((self.prompt.strip('#>'), '[Uu]sername', '[Pp]assword')))
         more = re.compile(r'-(?: |\()?(?:more|less \d+\%)(?:\(| )?|Press any key', flags=re.IGNORECASE)
-        while not raw or not complete.search(str(raw.splitlines()[1:])):
+        while not raw or not complete.match(str(raw.splitlines()[1:])):
             while not self.shell.recv_ready() and timeout > 0:
                 time.sleep(0.1)
                 timeout -= 0.1
@@ -580,7 +583,7 @@ class iTTY:
                 while len(raw) > 1 and not raw[0]:
                     raw = raw[1:]
                 if command_header:
-                    output.append('\n' + _underline(command.strip().decode(errors="ignore")))
+                    raw.insert(0, '\n' + _underline(command.strip().decode(errors="ignore")))
                 else:
                     raw.insert(0, " ".join((self.prompt, command.strip().decode(errors="ignore"))))
                 if not done:
@@ -599,7 +602,8 @@ class iTTY:
 
     async def _async_receive_sec_output(self, timeout):
         raw = ''
-        complete = re.compile('|'.join((self.prompt, '[Uu]sername', '[Pp]assword')))
+        prompt = "".join((self.prompt.strip('#>'), '([\(>]config.*(\))?)?', '(?:#|>|$| )'))
+        complete = re.compile('|'.join((prompt, '[Uu]sername', '[Pp]assword')))
         more = re.compile(r'-(?: |\()?(?:more|less \d+\%)(?:\( )?|Press any key', flags=re.IGNORECASE)
         while not raw or not complete.search(str(raw.splitlines()[1:])):
             while not self.shell.recv_ready() and timeout > 0:
@@ -613,7 +617,7 @@ class iTTY:
             if more.search(out):
                 await self._async_send_sec_command(' ')
             await asyncio.sleep(0.1)
-        return [line for line in raw.splitlines() if not re.match(self.prompt, line)][1:]
+        return [line for line in raw.splitlines()][1:]
 
     @asyncio.coroutine
     def _async_recv_sec_output(self):
@@ -660,7 +664,7 @@ class iTTY:
                     pass
             if out and (str(command) != str(self.password) and str(command) != str(self.username)):
                 if command_header:
-                    output.append("\n" + _underline(command.strip().decode(errors="ignore")))
+                    out = "\n".join((_underline(command.strip().decode(errors="ignore")), raw))
                 else:
                     out = "\n".join((" ".join((self.prompt, command.strip().decode(errors="ignore"))), out))
                 if not done:
@@ -681,13 +685,13 @@ class iTTY:
         while commands:
             command = commands.pop(0)
             if not isinstance(command, bytes):
-                command = command.encode()
-            raw = await self._async_run_unsec_command(command, timeout)
-            if raw and (str(command) != str(self.password) and str(command) != str(self.username)):
+                command = command.encode(errors="ignore")
+            raw = await self._async_run_unsec_command(command + b'\r', timeout=timeout)
+            if (str(command) != str(self.password) and str(command) != str(self.username)):
                 while len(raw) > 1 and not raw[0]:
                     raw = raw[1:]
                 if command_header:
-                    output.append("\n" + _underline(command.strip().decode(errors="ignore")))
+                    raw.insert(0, "\n" + _underline(command.strip().decode(errors="ignore")))
                 else:
                     raw.insert(0, ' '.join((self.prompt, command.strip().decode(errors="ignore"))))
                 if not done:
@@ -701,27 +705,24 @@ class iTTY:
         """
         Helper to async_run_unsec_commands, writes and returns output of commands
         """
-        try:
-            self.session.read_very_eager()
-            self.session.write(command.strip() + b'\r')
-            output, match = await self._async_expect(timeout=timeout)
-            if not match:
-                self.session.write(b'q\r\r\r')
-                await asyncio.sleep(3)
-            return output
-        except (BrokenPipeError, ConnectionResetError, EOFError, AttributeError) as e:
-            raise BrokenConnectionError(self.host, e)
-
+        self.session.read_very_eager()
+        await self._async_send_unsec_command(command)
+        output = await self._async_receive_unsec_output(timeout=timeout)
+        return output
 
     @asyncio.coroutine
-    def _async_expect(self, expectation=None, timeout=120):
-        """
-        Helper to async_run_unsec_commands, performs "expect"
-        """
+    def _async_send_unsec_command(self, command):
+        loop = asyncio.get_event_loop()
+        if not isinstance(command, bytes):
+            command = command.encode()
+        yield from loop.run_in_executor(None, partial(self.session.write, command))
+
+    @asyncio.coroutine
+    def _async_recv_unsec_output(self, expectation=None, timeout=1):
         loop = asyncio.get_event_loop()
         if not expectation:
             try:
-                expectation = re.compile(self.prompt.encode())
+                expectation = re.compile(b"".join((self.prompt.strip('#>'), '(\(config.*\)#)?', '(?:#|>|$| )')).encode())
             except re.error as err:
                 print(err, self.prompt)
                 raise BrokenConnectionError(self.host, err)
@@ -729,14 +730,34 @@ class iTTY:
             if not isinstance(expectation, bytes):
                 expectation = expectation.encode()
             expectation = re.compile(expectation)
+        _, match, raw = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=timeout))
+        return ansi_escape.sub('', raw.decode(errors='ignore')), match
+
+    async def _async_receive_unsec_output(self, expectation=None, timeout=10):
+        """
+        Helper to async_run_unsec_commands, performs "expect"
+        """
+        prompt = "".join((self.prompt.strip('#>'), '([\(>]config.*(\))?)?', '(?:#|>|$| )')).encode()
+        if not expectation:
+            expectation = re.compile(b'|'.join((prompt, b'[Uu]sername', b'[Pp]assword')))
+        more = re.compile(r'-(?: |\()?(?:more|less \d+\%)(?:\( )?|Press any key', flags=re.IGNORECASE)
+        out = ''
+        raw = ''
+        match = False
         try:
-            _, match, output = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=timeout))
-            output = ansi_escape.sub('', output.decode(errors='ignore'))
-            if self.prompt:
-                return [line for line in output.splitlines() if not re.match(self.prompt, line)], match
-            else:
-                return output.splitlines(), match
-        except (BrokenPipeError, EOFError, ConnectionResetError, AttributeError) as e:
+            while not out or not match and timeout > 0:
+                out, match = await self._async_recv_unsec_output(expectation=expectation)
+                if out:
+                    raw += out
+                    if not match and more.search(out):
+                        self.session.write(b' \r')
+                if timeout <= 0:
+                    await self._async_send_unsec_command('\x03')
+                    break
+                await asyncio.sleep(1)
+                timeout -= 1
+            return [line for line in raw.splitlines()][1:]
+        except (BrokenPipeError, ConnectionResetError, EOFError, AttributeError) as e:
             raise BrokenConnectionError(self.host, e)
 
     def logout(self):

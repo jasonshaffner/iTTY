@@ -19,6 +19,7 @@ def parse_params():
     timeout = 10
     device_list = []
     greppable_output = False
+    config_mode = False
     if len(sys.argv) > 1:
         for i, arg in enumerate(sys.argv):
             if arg == '-u':
@@ -31,6 +32,8 @@ def parse_params():
                 greppable_output = True
             elif arg == '-t':
                 timeout = int(sys.argv[i+1])
+            elif arg == '-c':
+                config_mode = True
     if not username:
         username = input("Username: ")
     if not password:
@@ -39,12 +42,14 @@ def parse_params():
         device_list = input("Device list file: ")
     if not greppable_output:
         greppable_output = True if re.match('y', input('Would you like greppable output? [y/n]'), flags=re.IGNORECASE) else False
-    return (username, password, device_list, greppable_output, timeout)
+    if not config_mode:
+        config_mode = True if re.match('y', input('Are you configuring devices? [y/n]'), flags=re.IGNORECASE) else False
+    return (username, password, device_list, greppable_output, config_mode, timeout)
 
 def get_devices(devicelist):
     devices = [[]]
     with open(devicelist, 'r') as hosts:
-        hostnames = list(hosts)
+        hostnames = {host for host in hosts.readlines() if host.strip()}
         dev_count = len(hostnames)
         if dev_count > int(ULIMIT/CPUS):
             group_count = int(dev_count/int(ULIMIT/CPUS))
@@ -119,6 +124,7 @@ async def run_commands(device, report, failed):
                 print('NO OS', device)
                 failed.append(device)
                 return
+            prompt = tty.prompt
             commands = []
             for command in COMMANDS[tty.os]:
                 if re.search('<.*>', command):
@@ -148,7 +154,8 @@ async def run_commands(device, report, failed):
                             failed.append(device)
                             return
                 commands.append(command)
-            output = await tty.async_run_commands(commands, timeout=10, command_header=1)
+            command_header = 0 if GREP else 1
+            output = await tty.async_run_commands(commands, timeout=10, command_header=command_header)
             if not tty.sift_output(output, tty.prompt, '-', commands):
                 print('No output from ', device)
                 failed.append(device)
@@ -157,23 +164,33 @@ async def run_commands(device, report, failed):
         print('Could not connect to', device)
         failed.append(device)
         return
+    output = tty.sift_output(output, [])
+    prompt = re.compile("".join((tty.prompt.strip('#>'), '([\(>]config.*(\))?)?', '(?:#|>|$| )')))
     if GREP:
-        output = tty.sift_output(output, tty.prompt)
+        command_regex = re.compile('|'.join((re.sub(r'\|', '\\|', c.strip()) for c in COMMANDS[tty.os])))
         grep = []
-        for line in output:
-            if line:
-                if re.search("|".join(COMMANDS[tty.os]), str(line)):
-                    command = str(line).strip()
-                else:
-                    grep.append(','.join((device, command.strip(), str(line).strip())))
+        for line in out:
+            if not line.strip():
+                continue
+            if command_regex.search(str(line)):
+                command = command_regex.search(str(line)).group(0)
+            if CONFIG_MODE:
+                grep.append(','.join((device, command.strip(), str(line).strip())))
+            else:
+                if prompt.match(line):
+                    continue
+                grep.append(','.join((device, command.strip(), str(line).strip())))
         report.append(grep)
     else:
-        report.append(('\n\n', StringUtils.pad(device, 10, '-'), '\n'.join(line for line in tty.sift_output(output, tty.prompt))))
+        if CONFIG_MODE:
+            report.append(('\n\n', StringUtils.pad(device, 10, '-'), '\n'.join(line for line in output)))
+        else:
+            report.append(('\n\n', StringUtils.pad(device, 10, '-'), '\n'.join(line for line in output if not prompt.match(line))))
 
 
 if __name__ == '__main__':
     OS = dict({1: 'ALU', 2: 'XR', 3:'IOS', 4:'JUNOS', 5: 'ASA', 6: 'F5', 7: 'EOS', 8: 'A10', 9: 'Avocent', 10: 'Niagaga'})
-    USERNAME, PASSWORD, DEVICELIST, GREP, TIMEOUT = parse_params()
+    USERNAME, PASSWORD, DEVICELIST, GREP, CONFIG_MODE, TIMEOUT = parse_params()
     if not all((USERNAME, PASSWORD, DEVICELIST)):
         print('Need username, password, and devicelist to proceed')
         exit()
