@@ -164,7 +164,6 @@ async def run_commands(device, report, failed):
         failed.append(device)
         return
     output = tty.sift_output(output, [])
-    print(output)
     prompt = re.compile("".join((tty.prompt.strip('#>'), '([\(>]config.*(\))?)?', '(?:#|>|$| )')))
     if GREP:
         command_regex = re.compile('|'.join((re.sub(r'\|', '\\|', c.strip()) for c in COMMANDS[tty.os])))
