@@ -716,7 +716,10 @@ class iTTY:
         loop = asyncio.get_event_loop()
         if not isinstance(command, bytes):
             command = command.encode()
-        yield from loop.run_in_executor(None, partial(self.session.write, command))
+        try:
+            yield from loop.run_in_executor(None, partial(self.session.write, command))
+        except AttributeError as err:
+            raise BrokenConnectionError(self.host, err)
 
     @asyncio.coroutine
     def _async_recv_unsec_output(self, expectation=None, timeout=1):
