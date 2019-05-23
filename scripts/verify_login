@@ -35,18 +35,24 @@ def parse_params():
         device_list = input("Device list file: ")
     return (username, password, device_list)
 
-async def attempt_login(host, failed, ssh, telnet):
+async def attempt_login(host):
+    global ssh
+    global telnet
+    global failed
     host = host.strip()
     try:
         async with iTTY(host=host.strip(), username=USERNAME, password=PASSWORD, timeout=10) as tty:
             login_method = tty.telnet_or_ssh()
-            print(f'{host} reachable via {login_method}')
             if login_method == 'SSH':
-                ssh.value += 1
+                with ssh.get_lock():
+                    ssh.value += 1
             else:
-                telnet.value += 1
+                with telnet.get_lock():
+                    telnet.value += 1
+            print(f'{host} reachable via {login_method}')
     except CouldNotConnectError as e:
-        failed.value += 1
+        with failed.get_lock():
+            failed.value += 1
         for exception in e.exceptions.values():
             if re.search('Authentication', exception):
                 print(f'authentication failed for {host}')
@@ -68,16 +74,19 @@ def get_devices(devicelist):
             devices[index % group_count].append(host.strip())
     return devices, dev_count
 
-def verify(devices, failed, ssh, telnet):
+def verify(devices):
     loops = []
     loop = asyncio.new_event_loop()
     for device in devices:
-        task = loop.create_task(attempt_login(device, failed, ssh, telnet))
+        task = loop.create_task(attempt_login(device))
         loops.append(task)
     if loops:
         loop.run_until_complete(asyncio.wait(loops))
 
 if __name__ == '__main__':
+    global ssh
+    global telnet
+    global failed
     USERNAME, PASSWORD, DEVICELIST = parse_params()
     if not all((USERNAME, PASSWORD, DEVICELIST)):
         print('Need username, password, and devicelist to proceed')
@@ -88,16 +97,15 @@ if __name__ == '__main__':
     if not DEVICES:
         print('Could not generate device list')
         exit()
-    manager = multiprocessing.Manager()
-    failed = manager.Value(int, 0)
-    ssh = manager.Value(int, 0)
-    telnet = manager.Value(int, 0)
+    ssh = multiprocessing.Value('i', 0)
+    telnet = multiprocessing.Value('i', 0)
+    failed = multiprocessing.Value('i', 0)
     start = time.time()
     with multiprocessing.Pool(processes=CPUS, maxtasksperchild=1) as pool:
-        pool.imap_unordered(partial(verify, failed=failed, ssh=ssh, telnet=telnet), DEVICES)
+        pool.imap_unordered(verify, DEVICES)
         pool.close()
         pool.join()
     end = time.time()
     print('\n\n', '-' * 100, '\n\n')
     print(f'Successfully logged into {ssh.value + telnet.value} out of {DEV_COUNT} devices in {int((end - start)/60)} minutes and {int(end - start) % 60} seconds')
-    print('\n', f'{ssh.value} devices were reachable via SSH. {telnet.value} devices were reachable via Telnet.', '\n')
+    print('\n', f'{ssh.value} devices were reachable via SSH. {telnet.value} devices were reachable via Telnet. There were {failed.value} failed attempts.', '\n')
