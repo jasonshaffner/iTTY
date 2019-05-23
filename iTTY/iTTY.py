@@ -734,7 +734,10 @@ class iTTY:
             if not isinstance(expectation, bytes):
                 expectation = expectation.encode()
             expectation = re.compile(expectation)
-        _, match, raw = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=timeout))
+        try:
+            _, match, raw = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=timeout))
+        except EOFError as err:
+            raise BrokenConnectionError(self.host, err)
         return ansi_escape.sub('', raw.decode(errors='ignore')), match
 
     async def _async_receive_unsec_output(self, expectation=None, timeout=10):
