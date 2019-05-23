@@ -380,8 +380,6 @@ class iTTY:
             self.username = kwargs.get('username', None)
             self.password = kwargs.get('password', None)
         self.verify_login_parameters()
-        if not isinstance(self.username, bytes):
-            self.username = self.username.encode()
         if not isinstance(self.password, bytes):
             self.password = self.password.encode()
         login_regex = re.compile(b"|".join([b'[Uu]sername', b'[Ll]ogin']))
@@ -392,7 +390,7 @@ class iTTY:
             _, user_prompt = await self._async_recv_unsec_output(expectation=login_regex, timeout=self.timeout)
             if not user_prompt:
                 raise CouldNotConnectError({'telnet': 'host did not prompt for username'})
-            await self._async_send_unsec_command(self.username + b'\r')
+            await self._async_send_unsec_command(self.username.encode() + b'\r')
             _, password_prompt = await self._async_recv_unsec_output(expectation=password_regex, timeout=self.timeout)
             if not password_prompt:
                 raise CouldNotConnectError({'telnet': 'host did not prompt for password'})
@@ -705,7 +703,10 @@ class iTTY:
         """
         Helper to async_run_unsec_commands, writes and returns output of commands
         """
-        self.session.read_very_eager()
+        try:
+            self.session.read_very_eager()
+        except EOFError:
+            return ''
         await self._async_send_unsec_command(command)
         output = await self._async_receive_unsec_output(timeout=timeout)
         return output
