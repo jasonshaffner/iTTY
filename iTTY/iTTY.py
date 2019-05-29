@@ -705,7 +705,7 @@ class iTTY:
         """
         try:
             self.session.read_very_eager()
-        except EOFError:
+        except EOFError as err:
             raise BrokenConnectionError(self.host, err)
         await self._async_send_unsec_command(command)
         output = await self._async_receive_unsec_output(timeout=timeout)
