@@ -102,7 +102,27 @@ def gather_commands():
         with open('A10', 'r') as f:
             a10 = list(f)[:]
     except: pass
-    return ([], alu, xr, ios, junos, asa, f5, eos, a10)
+    acs = []
+    try:
+        with open('ACS', 'r') as f:
+            acs = ['terminal length 0'] + list(f)[:]
+    except: pass
+    niagara = []
+    try:
+        with open('NIAGARA', 'r') as f:
+            niagara = ['terminal length 0'] + list(f)[:]
+    except: pass
+    nxos = []
+    try:
+        with open('NXOS', 'r') as f:
+            nxos = ['terminal length 0'] + list(f)[:]
+    except: pass
+    iosxe = []
+    try:
+        with open('IOSXE', 'r') as f:
+            iosxe = ['terminal length 0'] + list(f)[:]
+    except: pass
+    return ([], alu, xr, ios, junos, asa, f5, eos, a10, acs, niagara, nxos, iosxe)
 
 def run_em(devices, report, failed):
     loops = []
@@ -116,8 +136,8 @@ def run_em(devices, report, failed):
 async def run_commands(device, report, failed):
     try:
         async with iTTY(host=device, username=USERNAME, password=PASSWORD, timeout=TIMEOUT) as tty:
-            if tty.os and not COMMANDS[tty.os]:
-                print('No commands for this device-type:', OS[tty.os], 'host:', device)
+            if tty.os and not COMMANDS.get(tty.os):
+                print('No commands for this device-type:', tty.os, 'host:', device)
                 failed.append(device)
                 return
             if not tty.os:
