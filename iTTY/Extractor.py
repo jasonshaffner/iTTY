@@ -33,6 +33,8 @@ async def extract_make(tty):
         return 'avocent'
     elif tty.os == 10:
         return 'niagara'
+    elif tty.os == 13:
+        return 'raritan'
 
 async def extract_hostname(tty):
     """
@@ -50,6 +52,8 @@ async def extract_hostname(tty):
         return await extract_a10_hostname(tty)
     elif tty.os == 9:
         return await extract_avocent_hostname(tty)
+    elif tty.os == 13:
+        return await extract_raritan_hostname(tty)
 
 async def extract_contact(tty):
     """
@@ -103,6 +107,8 @@ async def extract_version(tty):
         return await extract_a10_version(tty)
     elif tty.os == 9:
         return await extract_avocent_version(tty)
+    elif tty.os == 13:
+        return await extract_raritan_version(tty)
 
 async def extract_model(tty):
     """
@@ -168,6 +174,8 @@ async def extract_syslog_server(tty):
         return await extract_arista_syslog_server(tty)
     elif tty.os == 8:
         return await extract_a10_syslog_server(tty)
+    elif tty.os == 13:
+        return await extract_raritan_syslog_server(tty)
 
 async def extract_trap_collector(tty):
     """
@@ -189,6 +197,8 @@ async def extract_trap_collector(tty):
         return await extract_arista_trap_collector(tty)
     elif tty.os == 8:
         return await extract_a10_trap_collector(tty)
+    elif tty.os == 13:
+        return await extract_raritan_trap_collector(tty)
 
 async def extract_acl(tty, acl_name):
     """
@@ -311,7 +321,7 @@ async def extract_ios_version(tty):
     if output:
         for out in output:
             for line in out:
-                if re.search('Version', line) and not re.search('show|LGPL|ID|SW Image', line):
+                if re.search('Version', line) and not re.search('show|LGPL|ID|SW Image|Uptime', line):
                     try:
                         version = line.split('Version')[1].split(',')[0].split()[0].strip()
                         return version
@@ -319,6 +329,8 @@ async def extract_ios_version(tty):
                         print('extract_ios_verion: INDEXERROR: ', tty.host, line)
                 elif re.search('system.*version', line):
                     return line.split('version')[1].strip()
+                elif re.match('1\s+\w+\s+\w+\.', line):
+                    return line.split()[2]
 
 async def extract_junos_version(tty):
     """
@@ -394,6 +406,17 @@ async def extract_avocent_version(tty):
             for line in out:
                 if not re.search('show', line) and re.search('firmware', line):
                     return line.split()[1]
+
+async def extract_raritan_version(tty):
+    """
+    Extracts software version of remote avocent device
+    """
+    output = await tty.async_run_commands('show version', 30)
+    if output:
+        for out in output:
+            for line in out:
+                if re.match('Firmware', line):
+                    return line.split()[-1]
 
 
 async def extract_alu_model(tty):
@@ -637,6 +660,24 @@ async def extract_niagara_hostname(tty):
     """
     return tty.prompt.strip('#')
 
+async def extract_raritan_hostname(tty):
+    """
+    Extracts hostname of remote raritan device
+    """
+    hostname = None
+    domain = None
+    output = await tty.async_run_commands('show network', 10)
+    if output:
+        for out in output:
+            for line in out:
+                if re.match('Name', line.strip()):
+                    hostname = line.split()[-1]
+                elif re.match('Domain', line.strip()):
+                    domain = line.split()[-1]
+        if hostname:
+            if domain:
+                return ".".join((hostname, domain))
+            return hostname
 
 async def extract_alu_contact(tty):
     """
@@ -859,6 +900,17 @@ async def extract_a10_syslog_server(tty):
             return syslog_servers
     print(f'Could not extract A10 syslog server data from {tty.host}: {output}')
 
+async def extract_raritan_syslog_server(tty):
+    """
+    Extracts configured syslog servers of remote raritan device
+    """
+    output = await tty.async_run_commands("show syslog", 30)
+    if output:
+        syslog_servers = set([ip_regex.search(line).group('address') for out in output for line in out if ip_regex.search(line)])
+        if syslog_servers:
+            return syslog_servers
+    print(f'Could not extract raritan syslog server data from {tty.host}: {output}')
+
 async def extract_junos_series(tty):
     output = await tty.async_run_commands(['set cli screen-length 0', 'show version local | match Model'], 10)
     if output:
@@ -982,6 +1034,17 @@ async def extract_a10_trap_collector(tty):
     output = await tty.async_run_commands('show run | in snmp-server.*host', 10)
     if output:
         return set([ip_regex.search(line).group('address') for out in output for line in out if ip_regex.search(line)])
+
+async def extract_raritan_trap_collector(tty):
+    """
+    Extracts configured syslog servers of remote raritan device
+    """
+    output = await tty.async_run_commands("show snmp", 30)
+    if output:
+        trap_collectors = set([ip_regex.search(line).group('address') for out in output for line in out if ip_regex.search(line)])
+        if trap_collectors:
+            return trap_collectors
+    print(f'Could not extract raritan trap collector data from {tty.host}: {output}')
 
 async def extract_alu_acl(tty, acl_name):
     output = await tty.async_run_commands(f'admin display-config | match "prefix-list \"{acl_name}\"" context all', 10)

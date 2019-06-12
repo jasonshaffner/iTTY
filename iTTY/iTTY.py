@@ -39,6 +39,7 @@ class iTTY:
     NIAGARA = 10
     NXOS = 11
     IOSXE = 12
+    DSX = 13
 
 
     def __init__(self, **kwargs):
@@ -155,6 +156,8 @@ class iTTY:
             if re.search('refresh \:', str(prompt)):
                 self.prompt = '--:- / cli->'
                 self.run_commands('q', 3)
+        elif re.match(' '.join((self.username, '>')), str(prompt)):
+            self.os = self.DSX
         return self.os
 
     async def async_set_os(self, prompt):
@@ -220,6 +223,8 @@ class iTTY:
             if re.search('refresh \:', str(prompt)):
                 self.prompt = '--:- / cli->'
                 await self.async_run_commands('q', 3)
+        elif re.match(' '.join((self.username, '>')), str(prompt)):
+            self.os = self.DSX
         return self.os
 
     def login(self, **kwargs):
@@ -282,7 +287,7 @@ class iTTY:
             self.session = None
             self.shell = None
             raise CouldNotConnectError({'ssh': str(e)})
-        time.sleep(self.timeout)  #Allow time to log in and strip MOTD
+        time.sleep(self.timeout) 
         self.prompt = self.shell.recv(10000).decode().split('\n')[-1].strip().lstrip('*')
         self.set_os(self.prompt)
         return self.os
@@ -298,10 +303,10 @@ class iTTY:
         self.verify_login_parameters()
         if not isinstance(self.password, bytes):
             self.password = self.password.encode()
-        self.session = paramiko.SSHClient() #Create instance of SSHClient object
+        self.session = paramiko.SSHClient()
         self.session.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         await self._async_connect()
-        await asyncio.sleep(self.timeout)  #Allow time to log in and strip MOTD
+        await asyncio.sleep(self.timeout)
         self.prompt = await self._async_get_prompt()
         await self.async_set_os(self.prompt)
         return self.os
@@ -455,9 +460,6 @@ class iTTY:
             if success:
                 return
         raise CouldNotConnectError({'telnet': raw})
-
-
-
 
     def telnet_or_ssh(self):
         """
