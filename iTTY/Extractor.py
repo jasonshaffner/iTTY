@@ -579,7 +579,7 @@ async def extract_junos_hostname(tty):
     if output:
         hostname = None
         domain = None
-        hostname_lines = [line for out in output for line in out if not re.search('show|node', line) and re.search('host-name', line)]
+        hostname_lines = [line for out in output for line in out if not re.search('show|node1', line) and re.search('host-name', line)]
         if len(hostname_lines) > 1:
             hostname = next((line.split()[-1] for line in hostname_lines), None)
         elif hostname_lines:
