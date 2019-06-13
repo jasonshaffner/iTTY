@@ -118,7 +118,7 @@ async def extract_model(tty):
         return await extract_alu_model(tty)
     elif tty.os == 2:
         return await extract_xr_model(tty)
-    elif tty.os in (3, 11, 12):
+    elif tty.os in (3, 12):
         return await extract_ios_model(tty)
     elif tty.os == 4:
         return await extract_junos_model(tty)
@@ -132,6 +132,8 @@ async def extract_model(tty):
         return await extract_a10_model(tty)
     elif tty.os == 9:
         return await extract_avocent_model(tty)
+    elif tty.os == 11:
+        return await extract_nxos_model(tty)
 
 async def extract_series(tty):
     """
@@ -240,12 +242,10 @@ async def extract_alu_version(tty):
     Extracts software version of remote alcatel/nokia device
     """
     output = await tty.async_run_commands('show version', 10)
-    if not output:
-        return
-    for out in output:
-        for line in out:
-            if re.match('TiMOS', line):
-                return line.split()[0].split('-')[-1]
+    output = '\n'.join(output[0]) if output else output
+    if output:
+        match = re.search(r'(?:^TiMOS[-a-zA-Z]+)([\w\.]+)', output, re.M)
+        return match.group(1) if match else None
 
 async def extract_xr_version(tty):
     """
@@ -317,7 +317,7 @@ async def extract_ios_version(tty):
     """
     Extracts software version of remote cisco IOS device
     """
-    output = await tty.async_run_commands(['terminal length 0', 'show version'], 10)
+    output = await tty.async_run_commands(['show version'], 10)
     if output:
         for out in output:
             for line in out:
@@ -434,58 +434,48 @@ async def extract_xr_model(tty):
     """
     Extracts model of remote cisco IOS-XR device
     """
-    output = await tty.async_run_commands(['terminal length 0', 'show version brief | in "memory|hassis"'], 10)
-    if re.search('CRS', str(output)):
-        try:
-            return tty.sift_output(output, 'show', tty.username, tty.password, tty.prompt)[0].split()[1]
-        except IndexError as err:
-            print(f'extract_xr_model IndexError: {str(output)}: sifted: {tty.sift_output(output, tty.username, tty.password, tty.prompt)}')
-    elif re.search('ASR', str(output)):
-        for out in output:
-            for line in out:
-                if re.search('ASR\-', line):
-                    return line.split()[0]
-                elif re.search('ASR\ ', line):
-                    return line.split()[1]
-    else:
-        output = await tty.async_run_commands('admin show inventory', 10)
-        nxt = False
-        if not output:
-            return
-        for out in output:
-            for line in out:
-                if re.search('Chassis', line):
-                    nxt = True
-                    continue
-                if nxt:
-                    return line.split()[1]
+    output = await tty.async_run_commands(['show version | in "processor|hassis"'], 30)
+    if output:
+        output = "\n".join(output[0])
+        match = re.search(r'(^ASR[-\s]\d+|IOS-XRv\s\w+|CRS[-\w/]+)', output, re.M)
+        if match:
+            return re.sub('[\s]', '-', match.group(0)) if re.search(r'ASR|CRS', output) else re.sub('[-\s]', '', match.group(0)).upper()
+    output = await tty.async_run_commands('admin show inventory', 30)
+    if output:
+        output = '\n'.join(output[0])
+        match = re.search(r'(?:Name[^\n]*Chassis[^\n]*\n\s+PID:\s)([-\w]+)', output)
+        return match.group(1) if match else None
 
 async def extract_ios_model(tty):
     """
     Extracts model of remote cisco IOS device
     """
-    output = await tty.async_run_commands(['terminal length 0', 'show version'], 10)
+    output = await tty.async_run_commands(['show version'], 20)
     if output:
-        for out in output:
-            for line in out:
-                if re.search('memory\.', line) \
-                    and not re.search('show|ermission|reload', line):
-                    return line.split()[1]
-                elif re.search('Nexus.*Chassis', line):
-                    if re.search('Nexus\d{1,4}', line):
-                        return re.search('Nexus\d{1,4}', line).group(0)
-                    return line.split()[2]
+        output = '\n'.join(output[0])
+        match = re.search(r'(?:\w+\s)([-\w]+)[^\n]*(?!show|ermission|reload)[^\n]*memory\.', output)
+        if match:
+            return match.group(1)
+
+async def extract_nxos_model(tty):
+    """
+    Extracts model of remote cisco NXOS device
+    """
+    output = await tty.async_run_commands(['show version'], 10)
+    if output:
+        output = '\n'.join(output[0])
+        match = re.search(r'(Nexus\s?\d{1,4})(?=\sChassis)', output)
+        return re.sub(' ', '', match.group(1)) if match else None
 
 async def extract_junos_model(tty):
     """
     Extracts model of remote juniper device
     """
-    output = await tty.async_run_commands(['set cli screen-length 0', 'show version local | match Model'], 10)
+    output = await tty.async_run_commands(['show version | match Model'], 10)
     if output:
-        for out in output:
-            for line in out:
-                if re.search('Model', line) and not re.search('show', line):
-                    return line.split()[-1]
+        output = '\n'.join(output[0])
+        if re.search('^Model', output, re.M):
+            return re.search('(?:^Model: )(.*)(?:$)', output, re.M).group(1)
 
 async def extract_asa_model(tty):
     """
@@ -963,16 +953,10 @@ async def extract_alu_series(tty):
                     return "".join((line.split()[-1].split('-')[0], line.split()[-2])).lower()
 
 async def extract_xr_series(tty):
-    output = await tty.async_run_commands("show version brief | in memory", 10)
+    output = await tty.async_run_commands("show version | in processor", 10)
     if output:
-        for out in output:
-            for line in out:
-                if re.search('cisco', line.strip()):
-                    if re.search('CRS', line):
-                        series = 'CRS'
-                    else:
-                        series = line.split()[1]
-                    return series
+        if re.search('CRS|IOS-XRv|ASR\w+', str(output)):
+            return re.search('CRS|IOS-XRv|ASR\w+', str(output)).group(0)
 
 async def extract_asa_series(tty):
     output = await tty.async_run_commands(['show version | in hardware', 'show inventory | in DESCR:'], 10)
@@ -1133,7 +1117,8 @@ async def extract_a10_interface_v4_addresses(tty, interface):
     raise NotImplementedError
 
 async def extract_xr_chassis_configuration(tty):
-    regex = re.compile('MC\|SC\|B2B')
     output = await tty.async_run_commands('admin show controllers fabric plane all detail | in UP', 10)
+    output = '\n'.join(output[0]) if output else output
     if output:
-        return next((regex.search(line).group(0) for out in output for line in out if regex.search(line)), None)
+        match = re.search(r'MC|SC|BSB', output)
+        return match.group(0) if match else None

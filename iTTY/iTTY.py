@@ -602,10 +602,10 @@ class iTTY:
 
     async def _async_receive_sec_output(self, timeout):
         raw = ''
-        prompt = "".join((self.prompt.strip('#>'), '([\(>]config.*(\))?)?', '(?:#|>|$| )'))
-        complete = re.compile('|'.join((prompt, '[Uu]sername', '[Pp]assword')))
+        prompt = "".join(('^\s*\*?', self.prompt.strip('#>'), '([\(>]config.*(\))?)?((?:#|>|$)| (?!\s*[-\w/]))'))
+        complete = re.compile('|'.join((prompt, '[Uu]sername', '[Ll]ogin', '[Pp]assword')), re.M)
         more = re.compile(r'-(?: |\()?(?:more|less \d+\%)(?:\( )?|Press any key', flags=re.IGNORECASE)
-        while not raw or not complete.search(str(raw.splitlines()[1:])):
+        while not raw or not complete.search("\n".join((raw.splitlines()[1:]))):
             while not self.shell.recv_ready() and timeout > 0:
                 await asyncio.sleep(0.1)
                 timeout -= 0.1
@@ -728,7 +728,8 @@ class iTTY:
         loop = asyncio.get_event_loop()
         if not expectation:
             try:
-                expectation = re.compile(b"".join((self.prompt.strip('#>'), '(\(config.*\)#)?', '(?:#|>|$| )')).encode())
+                prompt = "".join(('^\s*\*?', self.prompt.strip('#>'), '([\(>]config.*(\))?)?((?:#|>|$)| (?!\s*[-\w/]))')).encode()
+                expectation = re.compile(b'|'.join((prompt, b'[Uu]sername', b'[Ll]ogin', b'[Pp]assword')), re.M)
             except re.error as err:
                 print(err, self.prompt)
                 raise BrokenConnectionError(self.host, err)
@@ -746,9 +747,6 @@ class iTTY:
         """
         Helper to async_run_unsec_commands, performs "expect"
         """
-        prompt = "".join((self.prompt.strip('#>'), '([\(>]config.*(\))?)?', '(?:#|>|$| )')).encode()
-        if not expectation:
-            expectation = re.compile(b'|'.join((prompt, b'[Uu]sername', b'[Pp]assword')))
         more = re.compile(r'-(?: |\()?(?:more|less \d+\%)(?:\( )?|Press any key', flags=re.IGNORECASE)
         out = ''
         raw = ''
