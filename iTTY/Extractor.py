@@ -9,7 +9,7 @@ def extract_func(commands):
     Basic closure, runs commands on iTTY instance
     """
     async def func(tty):
-        output = tty.run_commands(commands)
+        output = await tty.async_run_commands(commands)
         return output
     return func
 
@@ -336,18 +336,12 @@ async def extract_junos_version(tty):
     """
     Extracts software version of remote juniper device
     """
-    output = await tty.async_run_commands(['set cli screen-length 0', 'show version | match "Software Suite"'], 10)
+    output = await tty.async_run_commands('show version', 10)
     if output:
-        for out in output:
-            for line in out:
-                if re.search('Software Suite', line) and not re.search('show|builder', line):
-                    return line.split()[-1].strip('[').strip(']')
-    output = await tty.async_run_commands('show version | match "Junos:"', 10)
-    if output:
-        for out in output:
-            for line in out:
-                if re.search('Junos', line) and not re.search('show', line):
-                    return line.split()[-1]
+        output = "\n".join(output[0])
+        version = re.search('(?i:^junos)(?:\:\s)?(?:[^\n]+\[)?([^\n^\]]+)(?:[\]\n])', output, re.M)
+        if version:
+            return version.group(1)
 
 async def extract_asa_version(tty):
     """
@@ -380,10 +374,10 @@ async def extract_arista_version(tty):
     """
     output = await tty.async_run_commands('show version | in Software', 10)
     if output:
-        for out in output:
-            for line in out:
-                if not re.search('show', line) and re.search('Software', line):
-                    return line.split('-')[0].split()[-1].strip()
+        output = "\n".join(output[0])
+        version = re.search('^Software image version: ([^\n]+)\n', output, re.M)
+        if version:
+            return version.group(1)
 
 async def extract_a10_version(tty):
     """
@@ -453,7 +447,7 @@ async def extract_ios_model(tty):
     output = await tty.async_run_commands(['show version'], 20)
     if output:
         output = '\n'.join(output[0])
-        match = re.search(r'(?:\w+\s)([-\w]+)[^\n]*(?!show|ermission|reload)[^\n]*memory\.', output)
+        match = re.search(r'^[Cc]isco\s([-\w]+)[^\n]*(?!ermission|reload)[^\n]*memory\.\n', output, re.M)
         if match:
             return match.group(1)
 
@@ -464,7 +458,7 @@ async def extract_nxos_model(tty):
     output = await tty.async_run_commands(['show version'], 10)
     if output:
         output = '\n'.join(output[0])
-        match = re.search(r'(Nexus\s?\d{1,4})(?=\sChassis)', output)
+        match = re.search(r'^\s*[Cc]isco (Nexus\s?\d{1,4})[^\n]+(?=\sChassis)', output, re.M)
         return re.sub(' ', '', match.group(1)) if match else None
 
 async def extract_junos_model(tty):
@@ -525,10 +519,10 @@ async def extract_arista_model(tty):
     """
     output = await tty.async_run_commands('show version | in Arista', 10)
     if output:
-        for out in output:
-            for line in out:
-                if not re.search('show', line) and re.search('Arista', line):
-                    return line.split('Arista')[1].strip()
+        output = "\n".join(output[0])
+        model = re.search('^Arista ([^\n]+)\n', output, re.M)
+        if model:
+            return model.group(1)
 
 async def extract_a10_model(tty):
     """
@@ -562,52 +556,34 @@ async def extract_cisco_hostname(tty):
     """
     Extracts hostname of remote cisco (and arista EOS) device
     """
-    output = await tty.async_run_commands(['terminal length 0', 'show run | in hostname', 'show run | in domain name', 'show run | in domain-name'], 10)
+    output = await tty.async_run_commands('show run | in name', 10)
     if output:
-        hostname = None
-        domain = None
-        hostname_lines = [line for out in output for line in out if not re.search('show|logging', line) and re.match('hostname', line.lstrip())]
-        if len(hostname_lines) > 1:
-            hostname = next((line.split()[-1] for line in hostname_lines), None)
-        elif hostname_lines:
-            hostname = hostname_lines[0].split()[-1]
-        domain_lines = [line for out in output for line in out if not re.search('show|logging|server', line) and re.search('domain.*name', line)]
-        if len(domain_lines) > 1:
-            for line in domain_lines:
-                if not domain or len(domain) > len(line.split()[-1]):
-                    domain = line.split()[-1]
-        elif domain_lines:
-            domain = domain_lines[0].split()[-1]
-        if hostname:
-            if domain:
-                return '.'.join((hostname, domain))
-            return hostname
+        output = "\n".join(output[0])
+        hostname = re.search('^hostname ([^\n]+)\n', output, re.M)
+        if not hostname:
+            return
+        domain = re.search('^(?:ip )?domain.name ([^\n]+)\n', output, re.M)
+        if domain:
+            return ".".join((hostname.group(1), domain.group(1)))
+        return hostname.group(1)
 
 async def extract_junos_hostname(tty):
     """
     Extracts hostname of remote juniper device
     """
-    output = await tty.async_run_commands(['set cli screen-length 0', 'show configuration | display set | match "host-name"', 'show configuration | display set | match "domain-name"'], 10)
-    node_names = []
+    output = await tty.async_run_commands('show configuration | display set | match name', 10)
     if output:
-        hostname = None
-        domain = None
-        hostname_lines = [line for out in output for line in out if not re.search('show|node1', line) and re.search('host-name', line)]
-        if len(hostname_lines) > 1:
-            hostname = next((line.split()[-1] for line in hostname_lines), None)
-        elif hostname_lines:
-            hostname = hostname_lines[0].split()[-1]
-        domain_lines = [line for out in output for line in out if not re.search('show', line) and re.search('domain-name', line)]
-        if len(domain_lines) > 1:
-            for line in domain_lines:
-                if not domain or len(domain) > len(line.split()[-1]):
-                    domain = line.split()[-1]
-        elif domain_lines:
-            domain = domain_lines[0].split()[-1]
-        if hostname:
-            if domain:
-                hostname = '.'.join((hostname, domain))
-            return hostname
+        output = "\n".join(output[0])
+        snmp_name = re.search('^set snmp name ([^\n]+)\n', output, re.M)
+        if snmp_name:
+            return snmp_name.group(1)
+        hostname = re.search('^set (?:groups node0 )?system host.name ([^\n]+)\n', output, re.M)
+        if not hostname:
+            return
+        domain = re.search('^set system domain-name ([^\n]+)\n', output, re.M)
+        if domain:
+            return '.'.join((hostname.group(1), domain.group(1)))
+        return hostname.group(1)
 
 async def extract_f5_hostname(tty):
     """
@@ -615,23 +591,26 @@ async def extract_f5_hostname(tty):
     """
     output = await tty.async_run_commands('list cm device | grep hostname', 10)
     if output:
-        for out in output:
-            for line in out:
-                if not re.search('list', line) and re.search('hostname', line):
-                    return line.split()[-1]
+        output = "\n".join(output[0])
+        hostname = re.search('^\s+hostname ([^\n])\n', output, re.M)
+        if hostname:
+            return hostname.group(1)
 
 async def extract_a10_hostname(tty):
     """
     Extracts hostname of remote a10 device
     """
-    output = await tty.async_run_commands('show run | in hostname', 10)
+    output = await tty.async_run_commands('show run | in hostname\|suffix', 10)
     if output:
-        for out in output:
-            for line in out:
-                if not re.search('show', line) and re.search('hostname', line):
-                    if re.search('device', line):
-                        return line.split()[1]
-                    return line.split()[-1]
+        output = "\n".join(output[0])
+        hostname = re.search('^hostname ([^\n]+)(?: device \d+)?\n', output, re.M)
+        if not hostname:
+            return
+        domain = re.search('^ip dns suffix ([^\n]+)\n', output, re.M)
+        if domain:
+            return '.'.join((hostname.group(1), domain.group(1)))
+        return hostname.group(1)
+
 
 async def extract_avocent_hostname(tty):
     """

@@ -136,7 +136,7 @@ def run_em(devices, report, failed):
 async def run_commands(device, report, failed):
     try:
         async with iTTY(host=device, username=USERNAME, password=PASSWORD, timeout=TIMEOUT) as tty:
-            if tty.os and not COMMANDS.get(tty.os):
+            if tty.os and not COMMANDS[tty.os]:
                 print('No commands for this device-type:', tty.os, 'host:', device)
                 failed.append(device)
                 return

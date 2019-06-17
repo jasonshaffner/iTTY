@@ -602,8 +602,7 @@ class iTTY:
 
     async def _async_receive_sec_output(self, timeout):
         raw = ''
-        prompt = "".join(('^\s*\*?', self.prompt.strip('#>'), '([\(>]config.*(\))?)?((?:#|>|$)| (?!\s*[-\w/]))'))
-        complete = re.compile('|'.join((prompt, '[Uu]sername', '[Ll]ogin', '[Pp]assword')), re.M)
+        complete = re.compile("".join(('^\s*\*?', self.prompt.strip('#>'), '([\(>]config.*(\))?)?(?:#|>)(?!\s*[-\w/])')), re.M)
         more = re.compile(r'-(?: |\()?(?:more|less \d+\%)(?:\( )?|Press any key', flags=re.IGNORECASE)
         while not raw or not complete.search("\n".join((raw.splitlines()[1:]))):
             while not self.shell.recv_ready() and timeout > 0:
@@ -724,15 +723,8 @@ class iTTY:
             raise BrokenConnectionError(self.host, err)
 
     @asyncio.coroutine
-    def _async_recv_unsec_output(self, expectation=None, timeout=1):
+    def _async_recv_unsec_output(self, expectation, timeout=1):
         loop = asyncio.get_event_loop()
-        if not expectation:
-            try:
-                prompt = "".join(('^\s*\*?', self.prompt.strip('#>'), '([\(>]config.*(\))?)?((?:#|>|$)| (?!\s*[-\w/]))')).encode()
-                expectation = re.compile(b'|'.join((prompt, b'[Uu]sername', b'[Ll]ogin', b'[Pp]assword')), re.M)
-            except re.error as err:
-                print(err, self.prompt)
-                raise BrokenConnectionError(self.host, err)
         if not isinstance(expectation, re.Pattern):
             if not isinstance(expectation, bytes):
                 expectation = expectation.encode()
@@ -748,6 +740,13 @@ class iTTY:
         Helper to async_run_unsec_commands, performs "expect"
         """
         more = re.compile(r'-(?: |\()?(?:more|less \d+\%)(?:\( )?|Press any key', flags=re.IGNORECASE)
+        if not expectation:
+            try:
+                expectation = re.compile("".join(('^\s*\*?', self.prompt.strip('#>'), '([\(>]config.*(\))?)?(?:#|>)(?!\s*[-\w/])')).encode(), re.M)
+#                prompt = "".join(('^\s*\*?', prompt.strip('#>'), '([\(>]config.*(\))?)?((?:#|>)| (?!\s*[-\w/]))')).encode()
+            except re.error as err:
+                print(err, self.prompt)
+                raise BrokenConnectionError(self.host, err)
         out = ''
         raw = ''
         match = False

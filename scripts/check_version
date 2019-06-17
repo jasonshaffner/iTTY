@@ -62,10 +62,10 @@ async def extract_data(device, report, failed):
     model = '-'
     version = '-'
     try:
-        async with iTTY(host=device, username=USERNAME, password=PASSWORD, timeout=10) as tty:
+        async with iTTY(host=device, username=USERNAME, password=PASSWORD, timeout=30) as tty:
             make = await Extractor.extract_make(tty) or '-'
-            model = await Extractor.extract_model(tty) or '-'
             version = await Extractor.extract_version(tty) or '-'
+            model = await Extractor.extract_model(tty) or '-'
     except (CouldNotConnectError, BrokenConnectionError):
         failed.append(device)
         return
