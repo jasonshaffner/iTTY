@@ -347,15 +347,12 @@ async def extract_asa_version(tty):
     """
     Extracts software version of remote cisco asa device
     """
-    output = await tty.async_run_commands(['show version | in Software Version', 'show version | in system:'], 10)
+    output = await tty.async_run_commands('show version', 10)
     if output:
-        for out in output:
-            for line in out:
-                if re.search('Version', line):
-                    if not re.search('show|loader:', line):
-                        if re.search('system:', line):
-                            return line.split('Version')[1].split()[0]
-                        return line.split()[-1]
+        output = "\n".join(output[0])
+        version = re.search('^Cisco Adaptive Security Appliance Software Version ([^\n]+)\n', output, re.M)
+        if version:
+            return version.group(1)
 
 async def extract_f5_version(tty):
     """
@@ -458,7 +455,7 @@ async def extract_nxos_model(tty):
     output = await tty.async_run_commands(['show version'], 10)
     if output:
         output = '\n'.join(output[0])
-        match = re.search(r'^\s*[Cc]isco (Nexus\s?\d{1,4})[^\n]+(?=\sChassis)', output, re.M)
+        match = re.search(r'^\s*[Cc]isco (Nexus\s?\d{1,4})[^\n]+(?=Chassis)', output, re.M)
         return re.sub(' ', '', match.group(1)) if match else None
 
 async def extract_junos_model(tty):

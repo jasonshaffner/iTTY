@@ -183,6 +183,10 @@ async def run_commands(device, report, failed):
         print('Could not connect to', device)
         failed.append(device)
         return
+    except OSError:
+        await asyncio.sleep(10)
+        await run_commands(device, report, failed)
+        return
     output = tty.sift_output(output, [])
     prompt = re.compile("".join((tty.prompt.strip('#>'), '([\(>]config.*(\))?)?', '(?:#|>|$| )')))
     if GREP:
@@ -214,7 +218,7 @@ if __name__ == '__main__':
         print('Need username, password, and devicelist to proceed')
         exit()
     CPUS = multiprocessing.cpu_count()
-    ULIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[0] * 2
+    ULIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
     DEVICES, DEV_COUNT = get_devices(DEVICELIST)
     if not DEVICES:
         print('Could not generate device list')

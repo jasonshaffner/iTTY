@@ -75,7 +75,7 @@ if __name__ == '__main__':
         print('Need username, password, and devicelist to proceed')
         exit()
     CPUS = multiprocessing.cpu_count()
-    ULIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[0] * 2
+    ULIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
     DEVICES, DEV_COUNT = get_devices(DEVICELIST)
     if not DEVICES:
         print('Could not generate device list')

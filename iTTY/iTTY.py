@@ -441,16 +441,15 @@ class iTTY:
             except CouldNotConnectError:
                 return
         try:
-            raw = await self.async_run_sec_commands('enable')
+            await self._async_send_sec_command('enable\r')
+            raw = await self._async_receive_sec_output(timeout=10, expectation='[Pp]assword')
         except OSError as e:
             raise BrokenConnectionError(self.host, e)
-        if re.search('[Pp]assword', str(raw)):
-            try:
-                raw = await self.async_run_sec_commands(self.password)
-            except OSError as e:
-                raise BrokenConnectionError(self.host, e)
-            return
-        raise CouldNotConnectError({'ssh': raw})
+        try:
+            raw = await self.async_run_sec_commands(self.password)
+        except OSError as e:
+            raise BrokenConnectionError(self.host, e)
+        return
 
     async def _async_unsec_enable(self):
         pass_regex = re.compile('[Pp]assword:')
@@ -577,7 +576,7 @@ class iTTY:
                 raise BrokenConnectionError(self.host, e)
             if command != self.password:
                 try:
-                    raw = await self._async_receive_sec_output(timeout)
+                    raw = await self._async_receive_sec_output(timeout=timeout)
                 except socket.error as e:
                     raise BrokenConnectionError(self.host, e)
                 while len(raw) > 1 and not raw[0]:
@@ -600,9 +599,14 @@ class iTTY:
             command = command.encode()
         yield from loop.run_in_executor(None, partial(self.shell.send, command))
 
-    async def _async_receive_sec_output(self, timeout):
+    async def _async_receive_sec_output(self, timeout=10, expectation=None):
         raw = ''
-        complete = re.compile("".join(('^\s*\*?', self.prompt.strip('#>'), '([\(>]config.*(\))?)?(?:#|>)(?!\s*[-\w/])')), re.M)
+        if expectation:
+            if not isinstance(expectation, re.Pattern):
+                expectation = re.compile(expectation)
+            complete = expectation
+        else:
+            complete = re.compile("".join(('^\s*\*?', self.prompt.strip('#>'), '([\(>]config.*(\))?)?(?:#|>)(?!\s*[-\w/])')), re.M)
         more = re.compile(r'-(?: |\()?(?:more|less \d+\%)(?:\( )?|Press any key', flags=re.IGNORECASE)
         while not raw or not complete.search("\n".join((raw.splitlines()[1:]))):
             while not self.shell.recv_ready() and timeout > 0:
