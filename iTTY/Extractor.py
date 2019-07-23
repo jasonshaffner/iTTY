@@ -2,7 +2,7 @@ import re
 import traceback
 from . import iTTY
 
-ip_regex = re.compile(r'(?:^|\s)(?P<address>((?:[1-9]?\d|1\d{2}|2[0-4]\d|25[0-5])\.){3}(?:[1-9]?\d|1\d{2}|2[0-4]\d|25[0-5]))(?P<slash>/)?(?(slash)(?P<cidr>\d|[12]\d|3[0-2]))(?:$|\s)')
+ip_regex = re.compile(r'(?:^|\s)(?P<address>((?:[1-9]?\d|1\d{2}|2[0-4]\d|25[0-5])\.){3}(?:[1-9]?\d|1\d{2}|2[0-4]\d|25[0-5]))(?P<slash>/)?(?(slash)(?P<cidr>\d|[12]\d|3[0-2]))(?:$|\s|:)')
 
 def extract_func(commands):
     """
@@ -201,6 +201,29 @@ async def extract_trap_collector(tty):
         return await extract_a10_trap_collector(tty)
     elif tty.os == 13:
         return await extract_raritan_trap_collector(tty)
+
+async def extract_tacacs_server(tty):
+    """
+    Extracts "tacacs servers" of remote device
+    """
+    if tty.os == 1:
+        return await extract_alu_tacacs_server(tty)
+    elif tty.os == 2:
+        return await extract_xr_tacacs_server(tty)
+    elif tty.os in (3, 12):
+        return await extract_ios_tacacs_server(tty)
+    elif tty.os == 4:
+        return await extract_junos_tacacs_server(tty)
+    #elif tty.os == 5:
+    #    return await extract_asa_tacacs_server(tty)
+    elif tty.os == 6:
+        return await extract_f5_tacacs_server(tty)
+    elif tty.os == 7:
+        return await extract_arista_tacacs_server(tty)
+    elif tty.os == 8:
+        return await extract_a10_tacacs_server(tty)
+    elif tty.os == 11:
+        return await extract_nxos_tacacs_server(tty)
 
 async def extract_acl(tty, acl_name):
     """
@@ -1098,3 +1121,59 @@ async def extract_xr_chassis_configuration(tty):
     if output:
         match = re.search(r'MC|SC|BSB', output)
         return match.group(0) if match else None
+
+async def extract_alu_tacacs_server(tty):
+    output = await tty.async_run_commands('admin display-config | match tacplus context children | match server')
+    if output:
+        tacacs_servers = set([ip_regex.search(line).group('address') for out in output for line in out if ip_regex.search(line)])
+        if tacacs_servers:
+            return tacacs_servers
+
+async def extract_ios_tacacs_server(tty):
+    output = await tty.async_run_commands('show tacacs | include address')
+    if output:
+        tacacs_servers = set([ip_regex.search(line).group('address') for out in output for line in out if ip_regex.search(line)])
+        if tacacs_servers:
+            return tacacs_servers
+
+async def extract_xr_tacacs_server(tty):
+    output = await tty.async_run_commands('show tacacs | include server')
+    if output:
+        tacacs_servers = set([ip_regex.search(line.split('/')[0]).group('address') for out in output for line in out if ip_regex.search(line.split('/')[0])])
+        if tacacs_servers:
+            return tacacs_servers
+
+async def extract_junos_tacacs_server(tty):
+    output = await tty.async_run_commands('show configuration | display set | match tacplus')
+    if output:
+        tacacs_servers = set([ip_regex.search(line).group('address') for out in output for line in out if ip_regex.search(line)])
+        if tacacs_servers:
+            return tacacs_servers
+
+async def extract_arista_tacacs_server(tty):
+    output = await tty.async_run_commands('show tacacs | include server')
+    if output:
+        tacacs_servers = set([ip_regex.search(line.split('/')[0]).group('address') for out in output for line in out if ip_regex.search(line.split('/')[0])])
+        if tacacs_servers:
+            return tacacs_servers
+
+async def extract_nxos_tacacs_server(tty):
+    output = await tty.async_run_commands('show tacacs | exclude [a-z]')
+    if output:
+        tacacs_servers = set([ip_regex.search(line).group('address') for out in output for line in out if ip_regex.search(line)])
+        if tacacs_servers:
+            return tacacs_servers
+
+async def extract_a10_tacacs_server(tty):
+    output = await tty.async_run_commands('show tacacs-server | include server')
+    if output:
+        tacacs_servers = set([ip_regex.search(line).group('address') for out in output for line in out if ip_regex.search(line)])
+        if tacacs_servers:
+            return tacacs_servers
+
+async def extract_f5_tacacs_server(tty):
+    output = await tty.async_run_commands('show running-config auth | grep "server [0-9]"')
+    if output:
+        tacacs_servers = set([ip_regex.search(line).group('address') for out in output for line in out if ip_regex.search(line)])
+        if tacacs_servers:
+            return tacacs_servers

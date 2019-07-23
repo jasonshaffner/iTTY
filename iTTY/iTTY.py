@@ -311,34 +311,32 @@ class iTTY:
         await self.async_set_os(self.prompt)
         return self.os
 
-    @asyncio.coroutine
-    def _async_connect(self):
+    async def _async_connect(self):
         """
         Helper to async_secure_login, performs the login via SSH
         """
         loop = asyncio.get_event_loop()
         try:
-            yield from loop.run_in_executor(None, partial(self.session.connect,\
+            await loop.run_in_executor(None, partial(self.session.connect,\
                                     self.host.strip('\n'),\
                                     username=self.username,\
                                     password=self.password,\
                                     look_for_keys=False,\
                                     allow_agent=False,\
                                     timeout=self.timeout))
-            self.shell = yield from loop.run_in_executor(None, partial(self.session.invoke_shell, width=200, height=200))
+            self.shell = await loop.run_in_executor(None, partial(self.session.invoke_shell, width=200, height=200))
         except (SSHException, NoValidConnectionsError, AuthenticationException, EOFError, ValueError, socket.error, socket.timeout) as e:
             self.session = None
             self.shell = None
             raise CouldNotConnectError({'ssh': str(e)})
 
 
-    @asyncio.coroutine
-    def _async_get_prompt(self):
+    async def _async_get_prompt(self):
         """
         Helper to async_secure_login, finds the prompt for the device
         """
         loop = asyncio.get_event_loop()
-        raw_prompt = yield from loop.run_in_executor(None, partial(self.shell.recv, 10000))
+        raw_prompt = await loop.run_in_executor(None, partial(self.shell.recv, 10000))
         return raw_prompt.decode(errors="ignore").split('\n')[-1].split('*')[-1].strip().lstrip('*')
 
 
@@ -411,14 +409,13 @@ class iTTY:
             self.session = None
             raise CouldNotConnectError({'telnet': str(e)})
 
-    @asyncio.coroutine
-    def _async_telnet_login(self):
+    async def _async_telnet_login(self):
         """
         Helper to async_unsecure_login, performs login
         """
         loop = asyncio.get_event_loop()
         try:
-            self.session = yield from loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
+            self.session = await loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
         except (ConnectionRefusedError, OSError, socket.timeout, BrokenPipeError, EOFError, BrokenConnectionError) as e:
             raise CouldNotConnectError({'telnet': str(e)})
 
@@ -592,12 +589,11 @@ class iTTY:
             self.logout()
         return output
 
-    @asyncio.coroutine
-    def _async_send_sec_command(self, command):
+    async def _async_send_sec_command(self, command):
         loop = asyncio.get_event_loop()
         if not isinstance(command, bytes):
             command = command.encode()
-        yield from loop.run_in_executor(None, partial(self.shell.send, command))
+        await loop.run_in_executor(None, partial(self.shell.send, command))
 
     async def _async_receive_sec_output(self, timeout=10, expectation=None):
         raw = ''
@@ -622,10 +618,9 @@ class iTTY:
             await asyncio.sleep(0.1)
         return [line for line in raw.splitlines()][1:]
 
-    @asyncio.coroutine
-    def _async_recv_sec_output(self):
+    async def _async_recv_sec_output(self):
         loop = asyncio.get_event_loop()
-        raw = yield from loop.run_in_executor(None, partial(self.shell.recv, 50000))
+        raw = await loop.run_in_executor(None, partial(self.shell.recv, 50000))
         return ansi_escape.sub('', raw.decode(errors='ignore'))
 
 
@@ -716,25 +711,23 @@ class iTTY:
         output = await self._async_receive_unsec_output(timeout=timeout)
         return output
 
-    @asyncio.coroutine
-    def _async_send_unsec_command(self, command):
+    async def _async_send_unsec_command(self, command):
         loop = asyncio.get_event_loop()
         if not isinstance(command, bytes):
             command = command.encode()
         try:
-            yield from loop.run_in_executor(None, partial(self.session.write, command))
+            await loop.run_in_executor(None, partial(self.session.write, command))
         except AttributeError as err:
             raise BrokenConnectionError(self.host, err)
 
-    @asyncio.coroutine
-    def _async_recv_unsec_output(self, expectation, timeout=1):
+    async def _async_recv_unsec_output(self, expectation, timeout=1):
         loop = asyncio.get_event_loop()
         if not isinstance(expectation, re.Pattern):
             if not isinstance(expectation, bytes):
                 expectation = expectation.encode()
             expectation = re.compile(expectation)
         try:
-            _, match, raw = yield from loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=timeout))
+            _, match, raw = await loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=timeout))
         except EOFError as err:
             raise BrokenConnectionError(self.host, err)
         return ansi_escape.sub('', raw.decode(errors='ignore')), match

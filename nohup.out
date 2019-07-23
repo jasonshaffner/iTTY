@@ -1,0 +1,13 @@
+ping: 10.50.50.2/30: Name or service not known
+ping: 10.50.50.2/30: Name or service not known
+ping: 10.50.50.2/30: Name or service not known
+ping: 10.50.50.2/30: Name or service not known
+extract_ios_series: IndexError: 172.25.6.141 CMP Software:
+Traceback (most recent call last):
+  File "/home/jasonshaffner/.pyenv/versions/3.7.1/bin/anacalypsis", line 905, in <module>
+    ip_ranges, MAX_PREFIX, CPUS, DEBUG, USERNAME, PASSWORD, API_USERNAME, API_PASSWORD, COMMUNITY, API_URL, LOG_DIR, WEEDEX, BLACKLIST, EMAIL_TO = parse_args(sys.argv)
+  File "/home/jasonshaffner/.pyenv/versions/3.7.1/bin/anacalypsis", line 731, in parse_args
+    aletheia = configparser['aletheia']
+  File "/home/jasonshaffner/.pyenv/versions/3.7.1/lib/python3.7/configparser.py", line 958, in __getitem__
+    raise KeyError(key)
+KeyError: 'aletheia'
