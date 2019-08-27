@@ -770,10 +770,16 @@ class iTTY:
         try:
             if self.shell:
                 self.shell.close()
+
+        except Exception:
+            pass
+
+        try:
             if self.session:
                 self.session.close()
-        except EOFError:
-            return
+
+        except Exception:
+            pass
 
 
     def sift_output(self, output, *sift_out):
