@@ -768,15 +768,15 @@ class iTTY:
         Performs logout of SSH and Telnet logins
         """
         try:
-            if self.shell:
-                self.shell.close()
+            if self.session:
+                self.session.close()
 
         except Exception:
             pass
 
         try:
-            if self.session:
-                self.session.close()
+            if self.shell:
+                self.shell.close()
 
         except Exception:
             pass
