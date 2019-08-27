@@ -313,7 +313,7 @@ async def extract_xr_version(tty):
             else:
                 return version
     else:
-        if re.match('CRS', dev_type):
+        if re.search('CRS', dev_type):
             count = 'utility wc -l'
         else:
             count = 'count'
