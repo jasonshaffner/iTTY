@@ -124,7 +124,7 @@ class iTTY:
                 self.os = self.IOSXE
             else:
                 self.os = self.IOS
-        elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
+        elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search(r'@\(', str(prompt)):
             self.os = self.JUNOS
         elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)) and not re.search('->', str(prompt)):
             try:
@@ -149,11 +149,11 @@ class iTTY:
                 else:
                     self.os = self.ASA
                     self.prompt = "".join((self.prompt.strip()[0:-1], '#'))
-        elif re.search(''.join((self.username, '@\(')), str(prompt)):
+        elif re.search(''.join((self.username, r'@\(')), str(prompt)):
             self.os = self.F5
-        elif re.search('refresh \:', str(prompt)) or re.search('--:- / cli->', str(prompt)):
+        elif re.search(r'refresh :', str(prompt)) or re.search('--:- / cli->', str(prompt)):
             self.os = self.AVOCENT
-            if re.search('refresh \:', str(prompt)):
+            if re.search(r'refresh :', str(prompt)):
                 self.prompt = '--:- / cli->'
                 self.run_commands('q', 3)
         elif re.match(' '.join((self.username, '>')), str(prompt)):
@@ -187,7 +187,7 @@ class iTTY:
                 self.os = self.IOSXE
             else:
                 self.os = self.IOS
-        elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search('@\(', str(prompt)):
+        elif re.search(''.join((self.username, '@.*>')), str(prompt)) and not re.search(r'@\(', str(prompt)):
             self.os = self.JUNOS
         elif re.search('.*>', str(prompt)) and not re.search(self.username, str(prompt)) and not re.search('->', str(prompt)):
             try:
@@ -216,11 +216,11 @@ class iTTY:
                 else:
                     self.os = self.ASA
                     self.prompt = "".join((self.prompt.strip()[0:-1], '#'))
-        elif re.search(''.join((self.username, '@\(')), str(prompt)):
+        elif re.search(''.join((self.username, r'@\(')), str(prompt)):
             self.os = self.F5
-        elif re.search('refresh \:', str(prompt)) or re.search('--:- / cli->', str(prompt)):
+        elif re.search(r'refresh :', str(prompt)) or re.search('--:- / cli->', str(prompt)):
             self.os = self.AVOCENT
-            if re.search('refresh \:', str(prompt)):
+            if re.search(r'refresh :', str(prompt)):
                 self.prompt = '--:- / cli->'
                 await self.async_run_commands('q', 3)
         elif re.match(' '.join((self.username, '>')), str(prompt)):
@@ -567,6 +567,7 @@ class iTTY:
                 except CouldNotConnectError:
                     raise BrokenConnectionError(self.host, e)
             try:
+                print(f'Sending command: {command}')
                 await self._async_send_sec_command(command.strip() + b'\r')
             except OSError as e:
                 print(self.host, e)
@@ -593,6 +594,7 @@ class iTTY:
         loop = asyncio.get_event_loop()
         if not isinstance(command, bytes):
             command = command.encode()
+        print(f'Command: {command}')
         await loop.run_in_executor(None, partial(self.shell.send, command))
 
     async def _async_receive_sec_output(self, timeout=10, expectation=None):
@@ -602,25 +604,30 @@ class iTTY:
                 expectation = re.compile(expectation)
             complete = expectation
         else:
-            complete = re.compile("".join(('^\s*\*?', self.prompt.strip('#>'), '([\(>]config.*(\))?)?(?:#|>)(?!\s*[-\w/])')), re.M)
+            complete = re.compile("".join((r'^\s*\*?', self.prompt.strip('#>'), r'([\(>]config.*(\))?)?(?:#|>)(?!\s*[-\w/])')), re.M)
+        print(f'Complete: {complete}')
         more = re.compile(r'-(?: |\()?(?:more|less \d+\%)(?:\( )?|Press any key', flags=re.IGNORECASE)
         while not raw or not complete.search("\n".join((raw.splitlines()[1:]))):
             while not self.shell.recv_ready() and timeout > 0:
                 await asyncio.sleep(0.1)
                 timeout -= 0.1
             if timeout <= 0:
-                await self._async_send_sec_command('\x03')
+                print('Timed out')
+                await self._async_send_sec_command(b'\x03')
+                await self._async_recv_sec_output()
                 break
             out = await self._async_recv_sec_output()
             raw += out
+            print(f'Out: {raw}')
             if more.search(out):
-                await self._async_send_sec_command(' ')
+                await self._async_send_sec_command(b' ')
             await asyncio.sleep(0.1)
         return [line for line in raw.splitlines()][1:]
 
     async def _async_recv_sec_output(self):
         loop = asyncio.get_event_loop()
-        raw = await loop.run_in_executor(None, partial(self.shell.recv, 50000))
+        raw = await loop.run_in_executor(None, partial(self.shell.recv, 5000))
+        print(f'Raw: {raw}')
         return ansi_escape.sub('', raw.decode(errors='ignore'))
 
 
@@ -739,7 +746,7 @@ class iTTY:
         more = re.compile(r'-(?: |\()?(?:more|less \d+\%)(?:\( )?|Press any key', flags=re.IGNORECASE)
         if not expectation:
             try:
-                expectation = re.compile("".join(('^\s*\*?', self.prompt.strip('#>'), '([\(>]config.*(\))?)?(?:#|>)(?!\s*[-\w/])')).encode(), re.M)
+                expectation = re.compile("".join((r'^\s*\*?', self.prompt.strip('#>'), r'([\(>]config.*(\))?)?(?:#|>)(?!\s*[-\w/])')).encode(), re.M)
 #                prompt = "".join(('^\s*\*?', prompt.strip('#>'), '([\(>]config.*(\))?)?((?:#|>)| (?!\s*[-\w/]))')).encode()
             except re.error as err:
                 print(err, self.prompt)

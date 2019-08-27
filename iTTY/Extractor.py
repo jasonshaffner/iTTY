@@ -322,7 +322,7 @@ async def extract_xr_version(tty):
             ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
             for out in output:
                 for line in out:
-                    if re.search('\d', line) and not re.search('show', line) and not re.search(tty.prompt, line):
+                    if re.search(r'\d', line) and not re.search('show', line) and not re.search(tty.prompt, line):
                         try:
                             smu = int(ansi_escape.sub('', line).strip()) if not count == 'count' else int(ansi_escape.sub('', line).strip().split()[1])
                         except ValueError:
@@ -352,7 +352,7 @@ async def extract_ios_version(tty):
                         print('extract_ios_verion: INDEXERROR: ', tty.host, line)
                 elif re.search('system.*version', line):
                     return line.split('version')[1].strip()
-                elif re.match('1\s+\w+\s+\w+\.', line):
+                elif re.match(r'1\s+\w+\s+\w+\.', line):
                     return line.split()[2]
 
 async def extract_junos_version(tty):
@@ -362,7 +362,7 @@ async def extract_junos_version(tty):
     output = await tty.async_run_commands('show version', 10)
     if output:
         output = "\n".join(output[0])
-        version = re.search('(?i:^junos)(?:\:\s)?(?:[^\n]+\[)?([^\n^\]]+)(?:[\]\n])', output, re.M)
+        version = re.search(r'(?i:^junos)(?::\s)?(?:[^\n]+\[)?([^\n^\]]+)(?:[\]\n])', output, re.M)
         if version:
             return version.group(1)
 
@@ -453,7 +453,7 @@ async def extract_xr_model(tty):
         output = "\n".join(output[0])
         match = re.search(r'(^ASR[-\s]\d+|IOS-XRv\s\w+|CRS[-\w/]+)', output, re.M)
         if match:
-            return re.sub('[\s]', '-', match.group(0)) if re.search(r'ASR|CRS', output) else re.sub('[-\s]', '', match.group(0)).upper()
+            return re.sub(r'[\s]', '-', match.group(0)) if re.search(r'ASR|CRS', output) else re.sub(r'[-\s]', '', match.group(0)).upper()
     output = await tty.async_run_commands('admin show inventory', 30)
     if output:
         output = '\n'.join(output[0])
@@ -489,7 +489,7 @@ async def extract_junos_model(tty):
     if output:
         output = '\n'.join(output[0])
         if re.search('^Model', output, re.M):
-            return re.search('(?:^Model: )(.*)(?:$)', output, re.M).group(1)
+            return re.search(r'(?:^Model: )(.*)(?:$)', output, re.M).group(1)
 
 async def extract_asa_model(tty):
     """
@@ -540,7 +540,7 @@ async def extract_arista_model(tty):
     output = await tty.async_run_commands('show version | in Arista', 10)
     if output:
         output = "\n".join(output[0])
-        model = re.search('^Arista ([^\n]+)\n', output, re.M)
+        model = re.search(r'^Arista ([^\n]+)\n', output, re.M)
         if model:
             return model.group(1)
 
@@ -579,10 +579,10 @@ async def extract_cisco_hostname(tty):
     output = await tty.async_run_commands('show run | in name', 10)
     if output:
         output = "\n".join(output[0])
-        hostname = re.search('^hostname ([^\n]+)\n', output, re.M)
+        hostname = re.search(r'^hostname ([^\n]+)\n', output, re.M)
         if not hostname:
             return
-        domain = re.search('^(?:ip )?domain.name ([^\n]+)\n', output, re.M)
+        domain = re.search(r'^(?:ip )?domain.name ([^\n]+)\n', output, re.M)
         if domain:
             return ".".join((hostname.group(1), domain.group(1)))
         return hostname.group(1)
@@ -594,13 +594,13 @@ async def extract_junos_hostname(tty):
     output = await tty.async_run_commands('show configuration | display set | match name', 10)
     if output:
         output = "\n".join(output[0])
-        snmp_name = re.search('^set snmp name ([^\n]+)\n', output, re.M)
+        snmp_name = re.search(r'^set snmp name ([^\n]+)\n', output, re.M)
         if snmp_name:
             return snmp_name.group(1)
-        hostname = re.search('^set (?:groups node0 )?system host.name ([^\n]+)\n', output, re.M)
+        hostname = re.search(r'^set (?:groups node0 )?system host.name ([^\n]+)\n', output, re.M)
         if not hostname:
             return
-        domain = re.search('^set system domain-name ([^\n]+)\n', output, re.M)
+        domain = re.search(r'^set system domain-name ([^\n]+)\n', output, re.M)
         if domain:
             return '.'.join((hostname.group(1), domain.group(1)))
         return hostname.group(1)
@@ -612,7 +612,7 @@ async def extract_f5_hostname(tty):
     output = await tty.async_run_commands('list cm device | grep hostname', 10)
     if output:
         output = "\n".join(output[0])
-        hostname = re.search('^\s+hostname ([^\n])\n', output, re.M)
+        hostname = re.search(r'^\s+hostname ([^\n])\n', output, re.M)
         if hostname:
             return hostname.group(1)
 
@@ -620,13 +620,13 @@ async def extract_a10_hostname(tty):
     """
     Extracts hostname of remote a10 device
     """
-    output = await tty.async_run_commands('show run | in hostname\|suffix', 10)
+    output = await tty.async_run_commands(r'show run | in hostname\|suffix', 10)
     if output:
         output = "\n".join(output[0])
-        hostname = re.search('^hostname ([^\n]+)(?: device \d+)?\n', output, re.M)
+        hostname = re.search(r'^hostname ([^\n]+)(?: device \d+)?\n', output, re.M)
         if not hostname:
             return
-        domain = re.search('^ip dns suffix ([^\n]+)\n', output, re.M)
+        domain = re.search(r'^ip dns suffix ([^\n]+)\n', output, re.M)
         if domain:
             return '.'.join((hostname.group(1), domain.group(1)))
         return hostname.group(1)
@@ -744,7 +744,7 @@ async def extract_alu_location(tty):
     if output:
         for out in output:
             for line in out:
-                if not re.search('display|cf\d:', line) and re.search('location', line):
+                if not re.search(r'display|cf\d:', line) and re.search('location', line):
                     return line.split('location')[-1].strip().strip('"')
 
 async def extract_cisco_location(tty):
@@ -766,7 +766,7 @@ async def extract_junos_location(tty):
     if output:
         for out in output:
             for line in out:
-                if not re.search('show|\-code', line) and re.search('location', line):
+                if not re.search(r'show|\-code', line) and re.search('location', line):
                     return line.split('location')[-1].strip().strip('"')
 
 async def extract_f5_location(tty):
@@ -816,7 +816,7 @@ async def extract_xr_syslog_server(tty):
     """
     Extracts configured syslog servers of remote cisco IOS-XR device
     """
-    output = await tty.async_run_commands("show run formal | utility egrep '^logging [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'", 20)
+    output = await tty.async_run_commands(r"show run formal | utility egrep '^logging [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'", 20)
     if output:
         syslog_servers = set([ip_regex.search(line).group('address') for out in output for line in out if ip_regex.search(line)])
         if syslog_servers:
@@ -838,7 +838,7 @@ async def extract_junos_syslog_server(tty):
     """
     Extracts configured syslog servers of remote juniper device
     """
-    output = await tty.async_run_commands(['set cli screen-length 0', "show configuration | display set | match syslog\ host"], 20)
+    output = await tty.async_run_commands(['set cli screen-length 0', r"show configuration | display set | match syslog\ host"], 20)
     if output:
         syslog_servers = set([ip_regex.search(line).group('address') for out in output for line in out if ip_regex.search(line)])
         if syslog_servers:
@@ -913,8 +913,8 @@ async def extract_ios_series(tty):
     if output:
         if re.search('c7600', str(output)):
             return 'c7600'
-        elif re.search('s\d+_rp', str(output)):
-            match = re.search('s\d+_rp', str(output))
+        elif re.search(r's\d+_rp', str(output)):
+            match = re.search(r's\d+_rp', str(output))
             out = await tty.async_run_commands(['terminal length 0', 'show inventory'], 10)
             if out:
                 series_line = next((line for o in out for line in o if re.search('Chassis', line)), None)
@@ -938,9 +938,9 @@ async def extract_ios_series(tty):
                         return line.split(',')[1].split()[0]
                     except IndexError:
                         print('extract_ios_series: IndexError:', tty.host, line)
-                elif re.search('bootflash.*n\d{1,4}', line):
-                    return re.search('n\d{1,4}', line).group(0)
-                elif re.search('Nexus\ ?\d{1,4}', line):
+                elif re.search(r'bootflash.*n\d{1,4}', line):
+                    return re.search(r'n\d{1,4}', line).group(0)
+                elif re.search(r'Nexus\ ?\d{1,4}', line):
                     return ''.join(('n', line.split('Nexus')[1].split()[0]))
 
 async def extract_alu_series(tty):
@@ -954,8 +954,8 @@ async def extract_alu_series(tty):
 async def extract_xr_series(tty):
     output = await tty.async_run_commands("show version | in processor", 10)
     if output:
-        if re.search('CRS|IOS-XRv|ASR\w+', str(output)):
-            return re.search('CRS|IOS-XRv|ASR\w+', str(output)).group(0)
+        if re.search(r'CRS|IOS-XRv|ASR\w+', str(output)):
+            return re.search(r'CRS|IOS-XRv|ASR\w+', str(output)).group(0)
 
 async def extract_asa_series(tty):
     output = await tty.async_run_commands(['show version | in hardware', 'show inventory | in DESCR:'], 10)
@@ -1030,7 +1030,7 @@ async def extract_raritan_trap_collector(tty):
     print(f'Could not extract raritan trap collector data from {tty.host}: {output}')
 
 async def extract_alu_acl(tty, acl_name):
-    output = await tty.async_run_commands(f'admin display-config | match "prefix-list \"{acl_name}\"" context all', 10)
+    output = await tty.async_run_commands(rf'admin display-config | match "prefix-list \"{acl_name}\"" context all', 10)
     if output:
         return tty.sift_output(output, tty.username, tty.password, tty.prompt)
 
