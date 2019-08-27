@@ -313,10 +313,10 @@ async def extract_xr_version(tty):
             else:
                 return version
     else:
-        if re.match('6', version):
-            count = 'count'
-        else:
+        if re.match('CRS', dev_type):
             count = 'utility wc -l'
+        else:
+            count = 'count'
         output = await tty.async_run_commands(f'admin show install active summary | in CSC | {count}', 20)
         if output:
             ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
