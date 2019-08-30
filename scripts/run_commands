@@ -13,6 +13,20 @@ from multiprocessing import Manager
 from iTTY.utils import StringUtils
 from iTTY import iTTY, Extractor, CouldNotConnectError, BrokenConnectionError
 
+dev_types = {1: 'ALU',
+             2: 'XR',
+             3: 'IOS',
+             4: 'JUNOS',
+             5: 'ASA',
+             6: 'F5',
+             7: 'EOS',
+             8: 'A10',
+             9: 'ACS',
+             10: 'NIAGARA',
+             11: 'NXOS',
+             12: 'IOSXE',
+             13: 'DSX'}
+
 def parse_params():
     username = ''
     password = ''
@@ -136,16 +150,21 @@ def run_em(devices, report, failed):
 async def run_commands(device, report, failed):
     try:
         async with iTTY(host=device, username=USERNAME, password=PASSWORD, timeout=TIMEOUT) as tty:
-            if tty.os and not COMMANDS[tty.os]:
-                print('No commands for this device-type:', tty.os, 'host:', device)
-                failed.append(device)
-                return
             if not tty.os:
                 print('NO OS', device)
                 failed.append(device)
                 return
-            commands = []
-            for command in COMMANDS[tty.os]:
+            try:
+                commands = COMMANDS[tty.os]
+                if not commands:
+                    print('No commands for this device-type:', dev_types[tty.os], ', host:', device)
+                    failed.append(device)
+                    return
+            except IndexError:
+                print('No commands for this device-type:', dev_types[tty.os], ', host:', device)
+                failed.append(device)
+                return
+            for command in commands:
                 if re.search('<.*>', command):
                     var = re.search('<.*>', command).group(0)
                     if re.search('HOSTNAME', var):
@@ -172,11 +191,11 @@ async def run_commands(device, report, failed):
                             print(f'Could not find location for {tty.host}')
                             failed.append(device)
                             return
-                commands.append(command)
             command_header = 0 if GREP else 1
             output = await tty.async_run_commands(commands, timeout=10, command_header=command_header)
-            if not tty.sift_output(output, tty.prompt, '-', commands):
+            if not tty.sift_output(output, tty.prompt, '---', commands):
                 print('No output from ', device)
+                print(output)
                 failed.append(device)
                 return
     except (CouldNotConnectError, BrokenConnectionError):
