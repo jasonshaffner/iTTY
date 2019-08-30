@@ -195,7 +195,6 @@ async def run_commands(device, report, failed):
             output = await tty.async_run_commands(commands, timeout=10, command_header=command_header)
             if not tty.sift_output(output, tty.prompt, '---', commands):
                 print('No output from ', device)
-                print(output)
                 failed.append(device)
                 return
     except (CouldNotConnectError, BrokenConnectionError):
