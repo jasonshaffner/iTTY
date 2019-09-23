@@ -643,7 +643,7 @@ async def extract_avocent_hostname(tty):
             for line in out:
                 if not re.search('cli->', line):
                     if line.startswith('hostname'):
-                        hostname = line.split('=')[0].strip()
+                        hostname = line.split('=')[-1].strip()
                     elif line.startswith('domain'):
                         domain = line.split('=')[-1].strip()
                 if hostname and domain:
