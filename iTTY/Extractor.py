@@ -636,12 +636,31 @@ async def extract_avocent_hostname(tty):
     """
     Extracts hostname of remote avocent device
     """
-    output = await tty.async_run_commands('ls access/', 10)
+    hostname = domain = None
+    output = await tty.async_run_commands('show network/settings', 10)
+    if output:
+        for out in output:
+            for line in out:
+                if not re.search('cli->', line):
+                    if line.startswith('hostname'):
+                        hostname = line.split('=')[0].strip()
+                    elif line.startswith('domain'):
+                        domain = line.split('=')[-1].strip()
+                if hostname and domain:
+                    break
+
+    if hostname:
+        if domain:
+            return ".".join((hostname, domain))
+        return hostname
+
+    output = await tty.async_run_commands('ls access', 10)
     if output:
         for out in output:
             for line in out:
                 if not re.search('cli->', line):
                     return line.split('/')[0]
+
 
 async def extract_niagara_hostname(tty):
     """
