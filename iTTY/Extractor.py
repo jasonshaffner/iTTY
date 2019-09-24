@@ -691,7 +691,7 @@ async def extract_alu_contact(tty):
     """
     Extracts contact of remote alcatel/nokia device
     """
-    output = await tty.async_run_commands('admin display-config | match contact', 10)
+    output = await tty.async_run_commands('admin display-config | match " contact "', 10)
     if output:
         for out in output:
             for line in out:
@@ -963,7 +963,7 @@ async def extract_ios_series(tty):
                     return ''.join(('n', line.split('Nexus')[1].split()[0]))
 
 async def extract_alu_series(tty):
-    output = await tty.async_run_commands('show chassis | Type', 10)
+    output = await tty.async_run_commands('show chassis | match Type', 10)
     if output:
         for out in output:
             for line in out:
