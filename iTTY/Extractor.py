@@ -967,7 +967,7 @@ async def extract_alu_series(tty):
     if output:
         for out in output:
             for line in out:
-                if re.search('Type', line.strip()):
+                if re.match('Type', line.strip()):
                     return "".join((line.split()[-1].split('-')[0], line.split()[-2])).lower()
 
 async def extract_xr_series(tty):
