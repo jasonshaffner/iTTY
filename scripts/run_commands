@@ -65,10 +65,7 @@ def get_devices(devicelist):
     with open(devicelist, 'r') as hosts:
         hostnames = {host for host in hosts.readlines() if host.strip()}
         dev_count = len(hostnames)
-        if dev_count > int(ULIMIT/CPUS):
-            group_count = int(dev_count/int(ULIMIT/CPUS))
-        else:
-            group_count = CPUS
+        group_count = max((CPUS, int(dev_count/int(ULIMIT/CPUS))))
         for index, host in enumerate(hostnames):
             if index % group_count >= len(devices):
                 devices.append([])
