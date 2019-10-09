@@ -392,21 +392,24 @@ class iTTY:
             await self._async_telnet_login()
             _, user_prompt = await self._async_recv_unsec_output(expectation=login_regex, timeout=self.timeout)
             if not user_prompt:
+                self.logout()
                 raise CouldNotConnectError({'telnet': 'host did not prompt for username'})
             await self._async_send_unsec_command(self.username.encode() + b'\r')
             _, password_prompt = await self._async_recv_unsec_output(expectation=password_regex, timeout=self.timeout)
             if not password_prompt:
+                self.logout()
                 raise CouldNotConnectError({'telnet': 'host did not prompt for password'})
             await self._async_send_unsec_command(self.password + b'\r')
             _prompt, match = await self._async_recv_unsec_output(expectation=prompt_regex, timeout=self.timeout)
             if match:
                 self.prompt = match.group(0).decode(errors="ignore")
             else:
+                self.logout()
                 raise CouldNotConnectError({'telnet': 'Authentication failed'})
             await self.async_set_os(self.prompt)
             return self.os
         except (ConnectionResetError, BrokenPipeError, socket.timeout, BrokenConnectionError) as e:
-            self.session = None
+            self.logout()
             raise CouldNotConnectError({'telnet': str(e)})
 
     async def _async_telnet_login(self):
@@ -417,6 +420,7 @@ class iTTY:
         try:
             self.session = await loop.run_in_executor(None, partial(telnetlib.Telnet, self.host.strip('\n').encode(), 23, self.timeout))
         except (ConnectionRefusedError, OSError, socket.timeout, BrokenPipeError, EOFError, BrokenConnectionError) as e:
+            self.logout()
             raise CouldNotConnectError({'telnet': str(e)})
 
     async def async_enable(self):
@@ -441,10 +445,12 @@ class iTTY:
             await self._async_send_sec_command('enable\r')
             raw = await self._async_receive_sec_output(timeout=10, expectation='[Pp]assword')
         except OSError as e:
+            self.logout()
             raise BrokenConnectionError(self.host, e)
         try:
             raw = await self.async_run_sec_commands(self.password)
         except OSError as e:
+            self.logout()
             raise BrokenConnectionError(self.host, e)
         return
 
@@ -455,6 +461,7 @@ class iTTY:
             raw, success = self._async_run_unsec_command(self.password)
             if success:
                 return
+        self.logout()
         raise CouldNotConnectError({'telnet': raw})
 
     def telnet_or_ssh(self):
@@ -542,9 +549,10 @@ class iTTY:
             if more.search(out):
                 self.shell.send(b' ')
             time.sleep(0.1)
+            timeout -= 0.1
         return "\n".join([line for line in raw.splitlines() if not re.match(self.prompt, line)])
 
-    async def async_run_sec_commands(self, commands, timeout=120, command_header=0, done=False):
+    async def async_run_sec_commands(self, commands, timeout=60, command_header=0, done=False):
         """
         Runs commands asynchronously when logged in via SSH, returns output
         """
@@ -560,21 +568,25 @@ class iTTY:
                     try:
                         await self.async_secure_login()
                     except CouldNotConnectError as e:
+                        self.logout()
                         raise BrokenConnectionError(self.host, e)
             except OSError as e:
                 try:
                     await self.async_secure_login()
                 except CouldNotConnectError:
+                    self.logout()
                     raise BrokenConnectionError(self.host, e)
             try:
                 await self._async_send_sec_command(command.strip() + b'\r')
             except OSError as e:
                 print(self.host, e)
+                self.logout()
                 raise BrokenConnectionError(self.host, e)
             if command != self.password:
                 try:
                     raw = await self._async_receive_sec_output(timeout=timeout)
                 except socket.error as e:
+                    self.logout()
                     raise BrokenConnectionError(self.host, e)
                 while len(raw) > 1 and not raw[0]:
                     raw = raw[1:]
@@ -617,6 +629,7 @@ class iTTY:
             if more.search(out):
                 await self._async_send_sec_command(b' ')
             await asyncio.sleep(0.1)
+            timeout -= 0.1
         return [line for line in raw.splitlines()][1:]
 
     async def _async_recv_sec_output(self):
@@ -651,6 +664,7 @@ class iTTY:
                 try:
                     _, match, out = self.session.expect([re.compile(self.prompt.encode()), ], timeout)
                 except (EOFError, BrokenPipeError, ConnectionResetError) as e:
+                    self.logout()
                     raise BrokenConnectionError(self.host, e)
             if out:
                 out = re.sub(command.decode(errors="ignore"), '', out).strip()
@@ -674,7 +688,7 @@ class iTTY:
         return output
 
 
-    async def async_run_unsec_commands(self, commands, timeout=120, command_header=0, done=False):
+    async def async_run_unsec_commands(self, commands, timeout=60, command_header=0, done=False):
         """
         Runs commands asynchronously when logged in via Telnet, returns output
         """
@@ -699,13 +713,14 @@ class iTTY:
             self.logout()
         return output
 
-    async def _async_run_unsec_command(self, command, timeout=120):
+    async def _async_run_unsec_command(self, command, timeout=60):
         """
         Helper to async_run_unsec_commands, writes and returns output of commands
         """
         try:
             self.session.read_very_eager()
         except EOFError as err:
+            self.logout()
             raise BrokenConnectionError(self.host, err)
         await self._async_send_unsec_command(command)
         output = await self._async_receive_unsec_output(timeout=timeout)
@@ -718,6 +733,7 @@ class iTTY:
         try:
             await loop.run_in_executor(None, partial(self.session.write, command))
         except AttributeError as err:
+            self.logout()
             raise BrokenConnectionError(self.host, err)
 
     async def _async_recv_unsec_output(self, expectation, timeout=1):
@@ -729,6 +745,7 @@ class iTTY:
         try:
             _, match, raw = await loop.run_in_executor(None, partial(self.session.expect, [expectation], timeout=timeout))
         except EOFError as err:
+            self.logout()
             raise BrokenConnectionError(self.host, err)
         return ansi_escape.sub('', raw.decode(errors='ignore')), match
 
@@ -742,12 +759,13 @@ class iTTY:
                 expectation = re.compile("".join((r'^\s*\*?', self.prompt.strip('#>'), r'([\(>]config.*(\))?)?(?:#|>)(?!\s*[-\w/])')).encode(), re.M)
             except re.error as err:
                 print(err, self.prompt)
+                self.logout()
                 raise BrokenConnectionError(self.host, err)
         out = ''
         raw = ''
         match = False
         try:
-            while not out or not match and timeout > 0:
+            while not out or not match:
                 out, match = await self._async_recv_unsec_output(expectation=expectation)
                 if out:
                     raw += out
@@ -760,6 +778,7 @@ class iTTY:
                 timeout -= 1
             return [line for line in raw.splitlines()][1:]
         except (BrokenPipeError, ConnectionResetError, EOFError, AttributeError) as e:
+            self.logout()
             raise BrokenConnectionError(self.host, e)
 
     def logout(self):
@@ -779,6 +798,9 @@ class iTTY:
 
         except Exception:
             pass
+
+        self.session = None
+        self.shell = None
 
 
     def sift_output(self, output, *sift_out):
