@@ -13,7 +13,7 @@ from multiprocessing import Manager
 from iTTY.utils import StringUtils
 from iTTY import iTTY, Extractor, CouldNotConnectError, BrokenConnectionError
 
-dev_types = {1: 'ALU',
+DEV_TYPES = {1: 'ALU',
              2: 'XR',
              3: 'IOS',
              4: 'JUNOS',
@@ -27,122 +27,112 @@ dev_types = {1: 'ALU',
              12: 'IOSXE',
              13: 'DSX'}
 
-def parse_params():
-    username = ''
-    password = ''
-    timeout = 10
-    device_list = []
-    greppable_output = False
-    config_mode = False
-    if len(sys.argv) > 1:
-        for i, arg in enumerate(sys.argv):
-            if arg == '-u':
-                username = sys.argv[i+1]
-            elif arg == '-p':
-                password = sys.argv[i+1]
-            elif arg == '-d':
-                device_list = sys.argv[i+1]
-            elif arg == '-g':
-                greppable_output = True
-            elif arg == '-t':
-                timeout = int(sys.argv[i+1])
-            elif arg == '-c':
-                config_mode = True
-    if not username:
-        username = input("Username: ")
-    if not password:
-        password = getpass.getpass()
-    if not device_list:
-        device_list = input("Device list file: ")
-    if not greppable_output:
-        greppable_output = True if re.match('y', input('Would you like greppable output? [y/n]'), flags=re.IGNORECASE) else False
-    if not config_mode:
-        config_mode = True if re.match('y', input('Are you configuring devices? [y/n]'), flags=re.IGNORECASE) else False
-    return (username, password, device_list, greppable_output, config_mode, timeout)
+CPUS = multiprocessing.cpu_count()
+ULIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
+USERNAME = ''
+PASSWORD = ''
+TIMEOUT = 10
+DEVICE_LIST = []
+GREP = False
+CONFIG_MODE = False
 
-def get_devices(devicelist):
-    devices = [[]]
-    with open(devicelist, 'r') as hosts:
-        hostnames = {host for host in hosts.readlines() if host.strip()}
-        dev_count = len(hostnames)
-        group_count = max((CPUS, int(dev_count/int(ULIMIT/CPUS))))
-        for index, host in enumerate(hostnames):
-            if index % group_count >= len(devices):
-                devices.append([])
-            devices[index % group_count].append(host.strip())
-    return devices, dev_count
+if len(sys.argv) > 1:
+    for i, arg in enumerate(sys.argv):
+        if arg == '-u':
+            USERNAME = sys.argv[i+1]
+        elif arg == '-p':
+            PASSWORD = sys.argv[i+1]
+        elif arg == '-d':
+            DEVICE_LIST = sys.argv[i+1]
+        elif arg == '-g':
+            GREPPABLE_OUTPUT = True
+        elif arg == '-t':
+            TIMEOUT = int(sys.argv[i+1])
+        elif arg == '-c':
+            CONFIG_MODE = True
+USERNAME = USERNAME or input("Username: ")
+PASSWORD = PASSWORD or getpass.getpass()
+DEVICE_LIST = DEVICE_LIST or input("Device list file: ")
 
-def gather_commands():
-    alu = []
-    try:
-        with open('ALU', 'r') as f:
-            alu = ['environment no more'] + list(f)[:]
-    except: pass
-    xr = []
-    try:
-        with open('XR', 'r') as f:
-            xr = ['terminal length 0'] + list(f)[:]
-    except: pass
-    ios = []
-    try:
-        with open('IOS', 'r') as f:
-            ios = ['terminal length 0'] + list(f)[:]
-    except: pass
-    junos = []
-    try:
-        with open('JUNOS', 'r') as f:
-            junos = ['set cli screen-length 0'] + list(f)[:]
-    except: pass
-    asa = []
-    try:
-        with open('ASA', 'r') as f:
-            asa = ['terminal pager 0'] + list(f)[:]
-    except: pass
-    f5 = []
-    try:
-        with open('F5', 'r') as f:
-            f5 = list(f)[:]
-    except: pass
-    eos = []
-    try:
-        with open('EOS', 'r') as f:
-            eos = ['terminal length 0'] + list(f)[:]
-    except: pass
-    a10 = []
-    try:
-        with open('A10', 'r') as f:
-            a10 = list(f)[:]
-    except: pass
-    acs = []
-    try:
-        with open('ACS', 'r') as f:
-            acs = ['terminal length 0'] + list(f)[:]
-    except: pass
-    niagara = []
-    try:
-        with open('NIAGARA', 'r') as f:
-            niagara = ['terminal length 0'] + list(f)[:]
-    except: pass
-    nxos = []
-    try:
-        with open('NXOS', 'r') as f:
-            nxos = ['terminal length 0'] + list(f)[:]
-    except: pass
-    iosxe = []
-    try:
-        with open('IOSXE', 'r') as f:
-            iosxe = ['terminal length 0'] + list(f)[:]
-    except: pass
-    return ([], alu, xr, ios, junos, asa, f5, eos, a10, acs, niagara, nxos, iosxe)
+if not all((USERNAME, PASSWORD, DEVICE_LIST)):
+    print('Need username, password, and devicelist to proceed')
+    exit()
+
+GREP = GREP or True if re.match('y', input('Would you like greppable output? [y/n]'), flags=re.IGNORECASE) else False
+CONFIG_MODE = CONFIG_MODE or True if re.match('y', input('Are you configuring devices? [y/n]'), flags=re.IGNORECASE) else False
+
+DEVICES = [[]]
+with open(DEVICE_LIST, 'r') as hosts:
+    hostnames = {host for host in hosts.readlines() if host.strip()}
+    DEV_COUNT = len(hostnames)
+    group_count = max((CPUS, int(DEV_COUNT/int(ULIMIT/CPUS))))
+    for index, host in enumerate(hostnames):
+        if index % group_count >= len(DEVICES):
+            DEVICES.append([])
+        DEVICES[index % group_count].append(host.strip())
+
+if not DEVICES:
+    print('Could not generate device list')
+    exit()
+
+COMMANDS = dict()
+try:
+    with open('ALU', 'r') as f:
+        COMMANDS['ALU'] = ['environment no more'] + list(f)[:]
+except: pass
+try:
+    with open('XR', 'r') as f:
+        COMMANDS['XR'] = ['terminal length 0'] + list(f)[:]
+except: pass
+try:
+    with open('IOS', 'r') as f:
+        COMMANDS['IOS'] = ['terminal length 0'] + list(f)[:]
+except: pass
+try:
+    with open('JUNOS', 'r') as f:
+        COMMANDS['JUNOS'] = ['set cli screen-length 0'] + list(f)[:]
+except: pass
+try:
+    with open('ASA', 'r') as f:
+        COMMANDS['ASA'] = ['terminal pager 0'] + list(f)[:]
+except: pass
+try:
+    with open('F5', 'r') as f:
+        COMMANDS['F5'] = list(f)[:]
+except: pass
+try:
+    with open('EOS', 'r') as f:
+        COMMANDS['EOS'] = ['terminal length 0'] + list(f)[:]
+except: pass
+try:
+    with open('A10', 'r') as f:
+        COMMANDS['A10'] = list(f)[:]
+except: pass
+try:
+    with open('ACS', 'r') as f:
+        COMMANDS['ACS'] = ['terminal length 0'] + list(f)[:]
+except: pass
+try:
+    with open('NIAGARA', 'r') as f:
+        COMMANDS['NIAGARA'] = ['terminal length 0'] + list(f)[:]
+except: pass
+try:
+    with open('NXOS', 'r') as f:
+        COMMANDS['NXOS'] = ['terminal length 0'] + list(f)[:]
+except: pass
+try:
+    with open('IOSXE', 'r') as f:
+        COMMANDS['IOSXE'] = ['terminal length 0'] + list(f)[:]
+except: pass
+if not COMMANDS:
+    print('Could not gather commands to run')
+    exit()
 
 def run_em(devices, report, failed):
-    loops = []
-    loop = asyncio.new_event_loop()
-    for device in devices:
-        task = loop.create_task(run_commands(device, report, failed))
-        loops.append(task)
-    if loops:
-        loop.run_until_complete(asyncio.wait(loops))
+    loop = asyncio.get_event_loop()
+    tasks = [loop.create_task(run_commands(device, report, failed)) for device in devices]
+    if tasks:
+        loop.run_until_complete(asyncio.wait(tasks))
 
 async def run_commands(device, report, failed):
     try:
@@ -152,13 +142,13 @@ async def run_commands(device, report, failed):
                 failed.append(device)
                 return
             try:
-                commands = COMMANDS[tty.os]
+                commands = COMMANDS.get(DEV_TYPES[tty.os])
                 if not commands:
-                    print('No commands for this device-type:', dev_types[tty.os], ', host:', device)
+                    print(f'No commands for this device-type: {DEV_TYPES[tty.os]}, host: {device}')
                     failed.append(device)
                     return
             except IndexError:
-                print('No commands for this device-type:', dev_types[tty.os], ', host:', device)
+                print(f'No commands for this device-type: {DEV_TYPES[tty.os]}, host: {device}')
                 failed.append(device)
                 return
             for command in commands:
@@ -227,21 +217,6 @@ async def run_commands(device, report, failed):
 
 
 if __name__ == '__main__':
-    OS = dict({1: 'ALU', 2: 'XR', 3:'IOS', 4:'JUNOS', 5: 'ASA', 6: 'F5', 7: 'EOS', 8: 'A10', 9: 'Avocent', 10: 'Niagaga'})
-    USERNAME, PASSWORD, DEVICELIST, GREP, CONFIG_MODE, TIMEOUT = parse_params()
-    if not all((USERNAME, PASSWORD, DEVICELIST)):
-        print('Need username, password, and devicelist to proceed')
-        exit()
-    CPUS = multiprocessing.cpu_count()
-    ULIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
-    DEVICES, DEV_COUNT = get_devices(DEVICELIST)
-    if not DEVICES:
-        print('Could not generate device list')
-        exit()
-    COMMANDS = gather_commands()
-    if not COMMANDS:
-        print('Could not gather commands to run')
-        exit()
     manager = multiprocessing.Manager()
     report = manager.list()
     failed = manager.list()

@@ -681,8 +681,7 @@ class iTTY:
         output = []
         if isinstance(commands, (str, bytes)):
             commands = [commands]
-        while commands:
-            command = commands.pop(0)
+        for command in commands:
             if not isinstance(command, bytes):
                 command = command.encode(errors="ignore")
             raw = await self._async_run_unsec_command(command + b'\r', timeout=timeout)
